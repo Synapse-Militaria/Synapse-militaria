@@ -1,0 +1,10 @@
+http://localhost:3000/api/armas/9/conflictos
+http://localhost:3000/api/armas/8/conflictos
+http://localhost:3000/api/armas/7/conflictos
+http://localhost:3000/api/armas/6/conflictos
+http://localhost:3000/api/armas/5/conflictos
+http://localhost:3000/api/armas/4/conflictos
+http://localhost:3000/api/armas/3/conflictos
+http://localhost:3000/api/armas/2/conflictos
+http://localhost:3000/api/armas/1/conflictos
+http://localhost:3000/api/armas
