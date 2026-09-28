@@ -1,7 +1,6 @@
 # Synapse-Militaria
 
 > **Enciclopedia y API RESTful de Armamento, Facciones y Conflictos Históricos**  
-> Proyecto desarrollado para la asignatura de **Programación Web**.
 
 ---
 
