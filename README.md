@@ -6,7 +6,7 @@
 
 ## Descripción General
 
-**Synapse-Militaria** es una plataforma y servicio backend orientado a la catalogación, divulgación y consulta estructurada de armamento bélico histórico, los países y facciones que los crearon o emplearon, y los eventos o conflictos bélicos en los que tuvieron participación activa (Segunda Guerra Mundial, Guerra de Corea, Guerra de Vietnam, entre otros).
+**Synapse-Militaria** es una plataforma y servicio backend orientado a la catalogación y consulta estructurada de armamento bélico histórico, los países y facciones que los crearon o emplearon, y los eventos o conflictos bélicos en los que tuvieron participación activa (Segunda Guerra Mundial, Guerra de Corea, Guerra de Vietnam, entre otros).
 
 El proyecto implementa una arquitectura modular **MVC (Modelo - Vista - Controlador)** completamente asíncrona sobre **Node.js** y **Express**, respaldada por un motor relacional **SQLite** que permite consultar y correlacionar relaciones complejas (como asociaciones muchos a muchos entre armas y conflictos).
 
