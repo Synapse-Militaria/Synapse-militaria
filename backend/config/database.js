@@ -1,15 +1,13 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const mongoose = require('mongoose');
 
-// Apuntamos al archivo físico de la base de datos
-const dbPath = path.resolve(__dirname, '../../database/synapse.db');
-
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Error al conectar a la base de datos:', err.message);
-    } else {
-        console.log('Conexión exitosa a la base de datos SQLite');
+const conectarDB = async () => {
+    try {
+        await mongoose.connect('mongodb://localhost:27017/synapse-militaria');
+        console.log('Conexión exitosa a MongoDB');
+    } catch (error) {
+        console.error('Error al conectar a MongoDB:', error.message);
+        process.exit(1);
     }
-});
+};
 
-module.exports = db;
+module.exports = conectarDB;

@@ -1,32 +1,19 @@
-const db = require('../config/database');
+const mongoose = require('mongoose');
 
-const ArmaModel = {
-    // Obtener todas las armas 
-    getAll: () => {
-        return new Promise((resolve, reject) => {
-            const query = "SELECT id_arma, nombre, tipo_arma, epoca_creacion FROM ARMA";
-            db.all(query, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
+const armaSchema = new mongoose.Schema({
+    nombre: { type: String, required: true },
+    tipo_arma: String,
+    epoca_creacion: String,
+    pais_origen: {
+        nombre: String,
+        tipo_faccion: String
     },
+    conflictos: [
+        {
+            nombre_conflicto: String,
+            fecha_inicio: String
+        }
+    ]
+});
 
-    // Obtener en qué guerras participó un arma
-    getConflictosPorArma: (id) => {
-        return new Promise((resolve, reject) => {
-            const query = `
-                SELECT a.nombre AS Arma, e.nombre_conflicto AS Guerra, e.fecha_inicio
-                FROM ARMA a 
-                JOIN ARMA_EVENTO ae ON a.id_arma = ae.id_arma 
-                JOIN EVENTO_CONFLICTO e ON ae.id_evento = e.id_evento 
-                WHERE a.id_arma = ?`;
-            db.all(query, [id], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-    }
-};
-
-module.exports = ArmaModel;
+module.exports = mongoose.model('Arma', armaSchema);

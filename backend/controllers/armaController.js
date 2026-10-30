@@ -1,13 +1,12 @@
-const ArmaModel = require('../models/armaModel');
+const Arma = require('../models/armaModel');
 
 const ArmaController = {
-    // Endpoint RESTful para listar armas
+    // Listar todas las armas
     getArmas: async (req, res) => {
         try {
-            const armas = await ArmaModel.getAll();
+            const armas = await Arma.find();
             res.status(200).json({
                 success: true,
-                tiempo_respuesta: "Optimizado (< 1s)",
                 cantidad: armas.length,
                 data: armas
             });
@@ -16,14 +15,19 @@ const ArmaController = {
         }
     },
 
-    // Endpoint RESTful para listar los conflictos de un arma x
+    // Obtener los conflictos de un arma específica
     getConflictos: async (req, res) => {
         try {
             const { id } = req.params;
-            const conflictos = await ArmaModel.getConflictosPorArma(id);
+            const arma = await Arma.findById(id);
+
+            if (!arma) {
+                return res.status(404).json({ success: false, message: "Arma no encontrada" });
+            }
+
             res.status(200).json({
                 success: true,
-                data: conflictos
+                data: arma.conflictos
             });
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
