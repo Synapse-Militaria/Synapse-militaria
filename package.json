@@ -21,8 +21,7 @@
   "homepage": "https://github.com/Synapse-Militaria/Synapse-militaria#readme",
   "dependencies": {
     "express": "^5.2.1",
-    "mongoose": "^9.11.4",
-    "sqlite3": "^6.0.1"
+    "mongoose": "^9.11.4"
   },
   "allowScripts": {
     "sqlite3@6.0.1": true

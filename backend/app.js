@@ -1,5 +1,5 @@
 const express = require('express');
-const conectarDB = require('./config/database'); // Importa la conexión desde database.js
+const conectarDB = require('./config/database'); 
 const armaController = require('./controllers/armaController');
 
 const app = express();
@@ -13,7 +13,9 @@ app.use(express.json());
 
 // Endpoints RESTful para la gestión de la enciclopedia
 app.get('/api/armas', armaController.getArmas);
+app.get('/api/armas/buscar', armaController.buscarArmas);
 app.get('/api/armas/:id/conflictos', armaController.getConflictos);
+app.post('/api/armas', armaController.createArma);
 
 // Ruta para comprobación rápida
 app.get('/', (req, res) => {

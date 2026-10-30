@@ -32,7 +32,45 @@ const ArmaController = {
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
         }
+    },
+
+    buscarArmas: async (req, res) => {
+        try {
+            const { termino } = req.query; 
+            
+            if (!termino) {
+                return res.status(400).json({ success: false, message: "Debes ingresar un término de búsqueda" });
+            }
+
+            // Buscamos coincidencias
+            const armasEncontradas = await Arma.find({ 
+                nombre: new RegExp(termino, 'i') 
+            });
+
+            res.status(200).json({
+                success: true,
+                cantidad: armasEncontradas.length,
+                data: armasEncontradas
+            });
+        } catch (error) {
+            res.status(500).json({ success: false, message: error.message });
+        }
+    },
+
+    createArma: async (req, res) => {
+        try {
+            const nuevaArma = new Arma(req.body);
+            const armaGuardada = await nuevaArma.save();
+
+            res.status(201).json({
+                success: true,
+                data: armaGuardada
+            });
+        } catch (error) {
+            res.status(400).json({ success: false, message: error.message });
+        }
     }
+
 };
 
 module.exports = ArmaController;
