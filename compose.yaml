@@ -1,0 +1,55 @@
+name: synapse-militaria
+
+services:
+  mongodb:
+    image: mongo:8.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodb:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  respaldos:
+    image: mongo:8.0
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      BACKUP_MONGO_URI: mongodb://mongodb:27017/synapse-militaria
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -u
+        trap 'exit 0' INT TERM
+        mkdir -p /backups || exit 1
+        while :; do
+          if mongosh "$$BACKUP_MONGO_URI" --quiet --eval 'quit(db.getCollectionNames().length ? 0 : 2)'; then
+            stamp="$$(date -u +%Y%m%dT%H%M%SZ)"
+            partial="$$(mktemp "/backups/synapse-militaria-$${stamp}-XXXXXX.archive.gz.partial")" || exit 1
+            if mongodump --uri="$$BACKUP_MONGO_URI" --archive="$$partial" --gzip; then
+              archive="$${partial%.partial}"
+              mv "$$partial" "$$archive" || exit 1
+              printf 'Respaldo completo disponible: %s\n' "$$archive"
+              sleep 86400 & wait $$!
+            else
+              printf 'ERROR: respaldo incompleto conservado en %s; se reintentara en 60 segundos.\n' "$$partial" >&2
+              sleep 60 & wait $$!
+            fi
+          else
+            printf 'MongoDB no disponible o catalogo todavia vacio; se reintentara en 60 segundos.\n' >&2
+            sleep 60 & wait $$!
+          fi
+        done
+
+volumes:
+  mongodb:
+    name: synapse_militaria_mongo

@@ -1,218 +1,101 @@
 # Synapse-Militaria
 
-> **Enciclopedia y API RESTful de Armamento, Facciones y Conflictos Históricos**  
+Enciclopedia de armamento histórico con React, Vite y Tailwind CSS. El frontend utiliza una API de Express y MongoDB o los datos locales de presentación.
 
----
+## Funcionalidades del frontend
 
-## Descripción General
+| Pantalla | Funciones implementadas |
+| --- | --- |
+| Inicio | Buscador, armas destacadas, contadores y accesos al catálogo por categoría o conflicto. |
+| Enciclopedia | Búsqueda por nombre, designación, descripción, país, calibre y otros datos de la ficha. Filtros combinables por categoría, país, conflicto y rango de años. Ordenamiento por nombre, año o cantidad de conflictos. |
+| Consultas | Reporte de armas por país con filtros de año, tipo y mínimo de armas; agregación real de MongoDB con JOIN y agrupación. |
+| Ficha del arma | Descripción histórica, especificaciones, galería ampliable, fuentes enlazadas y línea de tiempo de conflictos. |
+| Ingreso administrativo | Formulario de correo y contraseña, mensajes de error y acceso al panel. |
+| Panel administrativo | Creación, edición y eliminación de armas, conflictos, países/facciones y referencias. Confirmación de guardado y ventana de confirmación al eliminar. |
 
-**Synapse-Militaria** es una plataforma y servicio backend orientado a la catalogación y consulta estructurada de armamento bélico histórico, los países y facciones que los crearon o emplearon, y los eventos o conflictos bélicos en los que tuvieron participación activa (Segunda Guerra Mundial, Guerra de Corea, Guerra de Vietnam, entre otros).
+La búsqueda ignora mayúsculas y tildes. Cuando no hay coincidencias, muestra un estado vacío con un botón para restablecer todos los filtros.
 
-El proyecto implementa una arquitectura modular **MVC (Modelo - Vista - Controlador)** completamente asíncrona sobre **Node.js** y **Express**, respaldada por un motor relacional **SQLite** que permite consultar y correlacionar relaciones complejas (como asociaciones muchos a muchos entre armas y conflictos).
+La navegación utiliza las rutas `/`, `/enciclopedia`, `/consultas`, `/arma/:id`, `/admin/login` y `/admin`, sin recargar la página. Se pueden usar los botones Atrás y Adelante del navegador.
 
----
+La pestaña Referencias edita las fuentes embebidas en las armas o los conflictos. La marca de fuente revisada se selecciona manualmente; no existe una verificación automática de su contenido.
 
-## Características
+## Exportación
 
-- **Arquitectura Asíncrona:** Operaciones no bloqueantes basadas en `Promises` y sintaxis moderna `async/await`.
-- **Patrón MVC Desacoplado:** Separación rigurosa de responsabilidades entre capas de acceso a datos (`models`), lógica de negocio/respuesta (`controllers`) y enrutamiento del servidor (`app.js`).
-- **Base de Datos Relacional Integrada:** Base de datos SQLite autocontenida y portable con soporte para relaciones uno a muchos y muchos a muchos (`N:M`).
-- **API RESTful Estandarizada:** Respuestas uniformes en formato JSON con métricas de rendimiento y códigos de estado HTTP semánticos.
+**CSV:** descarga un archivo con los metadatos, especificaciones, eventos, multimedia y referencias de la ficha.
 
----
+**PDF:** abre la impresión del navegador con los estilos de la ficha. El usuario selecciona **Guardar como PDF**. No es una descarga directa de un PDF generado por el servidor.
 
-## Estructura del Proyecto
+## Datos, sesión y simulaciones
 
-```text
-Synapse-militaria/
-├── backend/
-│   ├── config/
-│   │   └── database.js         # Configuración y conexión a SQLite
-│   ├── controllers/
-│   │   └── armaController.js   # Manejo de peticiones HTTP y respuestas REST
-│   ├── models/
-│   │   └── armaModel.js        # Consultas SQL encapsuladas en Promesas
-│   └── app.js                  # Punto de entrada, configuración de Express y rutas
-├── database/
-│   └── synapse.db              # Base de datos SQLite (esquema y datos)
-├── .gitignore                  # Exclusiones de Git (node_modules, entorno, etc.)
-├── package.json                # Metadatos del proyecto, dependencias y scripts
-└── README.md                   # Documentación principal del proyecto
+Al iniciar, la página muestra nueve fichas locales y consulta la API. Si responden los catálogos de armas, países y conflictos, utiliza esos datos, incluso cuando el catálogo está vacío. En ese modo, las operaciones del panel se envían a la API autenticada y se guardan en MongoDB.
+
+Si la API no responde, se mantiene el modo de presentación. En ese modo el ingreso es simulado y los cambios del panel quedan en memoria: se pierden al recargar la página. El panel muestra este aviso.
+
+La sesión del frontend está en memoria. Termina al recargar, al cerrar sesión, tras 15 minutos de inactividad o al vencer su duración máxima de 30 minutos.
+
+La recuperación de contraseña es una simulación: valida el formato del correo y muestra una confirmación. No guarda una solicitud, no genera tokens de recuperación, no envía correos y no cambia contraseñas.
+
+Las fotos y las tipografías se sirven localmente desde `frontend/public/`. Los créditos de fotos están en `frontend/public/images/CREDITOS.md` y las licencias de tipografías en `frontend/public/fonts/LICENCIAS.txt`. Las fuentes históricas se consultan desde los enlaces de cada ficha.
+
+## Instalar y ejecutar desde otra copia
+
+Requiere Node.js 22.12 o superior y Docker Desktop iniciado, o una instalación de MongoDB accesible. Los comandos siguientes son para PowerShell en Windows; en Linux o macOS se usa `npm` en lugar de `npm.cmd`.
+
+Desde la raíz del repositorio, instalar las versiones de los archivos de bloqueo y crear la configuración local:
+
+```powershell
+npm.cmd ci
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
----
+Para crear MongoDB con la configuración incluida:
 
-## Tecnologías Utilizadas
-
-- **Entorno de Ejecución:** [Node.js](https://nodejs.org/) (v18+)
-- **Framework Web:** [Express.js](https://expressjs.com/) (v5.x)
-- **Motor de Base de Datos:** [SQLite3](https://www.sqlite.org/) (Driver `sqlite3` v6.x)
-- **Formato de Intercambio:** JSON
-
----
-
-## Requisitos Previos
-
-Antes de comenzar, asegúrate de tener instalado en tu sistema:
-
-- **Node.js** (versión 18 o superior recomendada)
-- **npm** (gestor de paquetes incluido con Node.js)
-- **Git** (opcional, para clonar el repositorio)
-
-
-
-## Documentación de la API
-
-La API expone los siguientes endpoints RESTful:
-
-### 1. Estado del Servidor
-Verifica la conectividad y el estado operativo del backend.
-
-- **Método:** `GET`
-- **Ruta:** `/`
-- **Respuesta Exitosa (200 OK):**
-  ```json
-  {
-    "mensaje": "Bienvenido al Backend de Synapse-Militaria",
-    "arquitectura": "Node.js + Express (Totalmente Asíncrono)",
-    "estado": "Online"
-  }
-  ```
-
----
-
-### 2. Catálogo General de Armas
-Retorna el listado completo de armas registradas en la enciclopedia.
-
-- **Método:** `GET`
-- **Ruta:** `/api/armas`
-- **Respuesta Exitosa (200 OK):**
-  ```json
-  {
-    "success": true,
-    "tiempo_respuesta": "Optimizado (< 1s)",
-    "cantidad": 9,
-    "data": [
-      {
-        "id_arma": 1,
-        "nombre": "AK-47",
-        "tipo_arma": "RIFLE",
-        "epoca_creacion": "1949"
-      },
-      {
-        "id_arma": 2,
-        "nombre": "M1 GARAND",
-        "tipo_arma": "RIFLE",
-        "epoca_creacion": "1936"
-      },
-      {
-        "id_arma": 3,
-        "nombre": "KARABINER 98K",
-        "tipo_arma": "RIFLE",
-        "epoca_creacion": "1935"
-      }
-    ]
-  }
-  ```
-
----
-
-### 3. Conflictos por Arma
-Retorna los eventos y conflictos históricos en los que fue utilizada un arma específica, identificada por su ID.
-
-- **Método:** `GET`
-- **Ruta:** `/api/armas/:id/conflictos`
-- **Parámetros de Ruta:**
-  - `id` (número entero, requerido): Identificador único del arma (ej. `1` para AK-47).
-- **Ejemplo de Solicitud:** `GET http://localhost:3000/api/armas/1/conflictos`
-- **Respuesta Exitosa (200 OK):**
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "Arma": "AK-47",
-        "Guerra": "Segunda Guerra Mundial",
-        "fecha_inicio": "1939-09-01"
-      },
-      {
-        "Arma": "AK-47",
-        "Guerra": "Guerra de Corea",
-        "fecha_inicio": "1950-06-25"
-      },
-      {
-        "Arma": "AK-47",
-        "Guerra": "Guerra de Vietnam",
-        "fecha_inicio": "1955-11-01"
-      },
-      {
-        "Arma": "AK-47",
-        "Guerra": "Guerra de Afganistán",
-        "fecha_inicio": "1979-12-24"
-      }
-    ]
-  }
-  ```
-
----
-
-## Modelo de Base de Datos
-
-La base de datos relacional almacena la estructura informativa del dominio bélico-histórico mediante las siguientes entidades y relaciones:
-
-```mermaid
-erDiagram
-    PAIS_FACCION ||--o{ ARMA : "origina / diseña"
-    ARMA ||--o{ ARMA_EVENTO : "participa en"
-    EVENTO_CONFLICTO ||--o{ ARMA_EVENTO : "registra uso de"
-    ARMA ||--o{ MULTIMEDIA : "posee"
-    ARMA ||--o{ REFERENCIA : "citada en"
-    EVENTO_CONFLICTO ||--o{ REFERENCIA : "documentado en"
-
-    PAIS_FACCION {
-        int id_pais PK
-        string nombre
-        string tipo_faccion
-    }
-
-    ARMA {
-        int id_arma PK
-        string nombre
-        string tipo_arma
-        string epoca_creacion
-        int id_pais_origen FK
-    }
-
-    EVENTO_CONFLICTO {
-        int id_evento PK
-        string nombre_conflicto
-        date fecha_inicio
-        date fecha_fin
-    }
-
-    ARMA_EVENTO {
-        int id_arma PK,FK
-        int id_evento PK,FK
-    }
-
-    MULTIMEDIA {
-        int id_multimedia PK
-        string url_archivo
-        string tipo_archivo
-        int id_arma FK
-    }
-
-    REFERENCIA {
-        int id_referencia PK
-        string detalle_cita
-        string url_enlace
-        int id_arma FK
-        int id_evento FK
-    }
-
-    ADMINISTRADOR {
-        int id_admin PK
-        string email
-        string password_cifrada
-    }
+```powershell
+docker compose up -d mongodb
+docker compose ps
 ```
+
+Esperar a que el servicio aparezca como `healthy`. MongoDB 8.0 queda disponible solo en `127.0.0.1:27017`, con el volumen persistente `synapse_militaria_mongo`. Si este equipo ya tiene el contenedor anterior `synapse-militaria-mongo`, usar `docker start synapse-militaria-mongo` en lugar de iniciar Compose: ambos usan el mismo puerto y volumen. También se puede usar una instalación propia y configurar su dirección en `MONGO_URI` de `.env`.
+
+Cargar el catálogo inicial e iniciar la API:
+
+```powershell
+npm.cmd run seed
+npm.cmd start
+```
+
+El seed crea nueve armas, cuatro países, cinco conflictos y la cuenta administrativa; conserva los documentos que ya existían. La cuenta local de demostración es `admin@synapse-militaria.cl` / `admin123`. Se puede elegir otra cuenta mediante `ADMIN_EMAIL` y `ADMIN_PASSWORD` en `.env` antes de la primera carga; el seed no cambia la contraseña de una cuenta existente. La contraseña se almacena con scrypt y las credenciales no aparecen en el formulario de ingreso.
+
+En una segunda terminal, desde la raíz:
+
+```powershell
+cd frontend
+npm.cmd ci
+npm.cmd run dev
+```
+
+Abrir http://localhost:5173. La API queda en http://localhost:3000; `GET /` debe indicar `Online`. Si Vite elige otro puerto, configurar ese origen en `FRONTEND_ORIGINS` del backend. Para una API en otra dirección, crear `frontend/.env.local` con `VITE_API_URL=http://servidor:3000/api` y reiniciar Vite. Después de cargar MongoDB o iniciar la API, recargar el frontend antes de editar y comprobar que el panel indique conexión con MongoDB.
+
+Para ver únicamente el modo de presentación, basta con ejecutar los tres comandos del frontend. Sus cambios no persisten y no sirven como prueba de la base de datos.
+
+En las siguientes sesiones, iniciar MongoDB con el mismo método elegido, ejecutar `npm.cmd start` desde la raíz y `npm.cmd run dev` desde `frontend/`. Para detener el servicio creado con Compose conservando sus datos, usar `docker compose stop mongodb`.
+
+## Respaldos diarios
+
+Con MongoDB administrado por Compose y el catálogo cargado, ejecutar `docker compose up -d respaldos`. El servicio crea una copia completa comprimida de la base `synapse-militaria` al arrancar y después cada 24 horas mientras Docker y el equipo estén encendidos. Los archivos se guardan en `backups/`, excluido de Git. Los fallos se registran y se reintentan cada minuto; un archivo `.partial` no es un respaldo terminado.
+
+La configuración queda incluida en el repositorio, pero su presencia no significa que el servicio esté activo. Comprobar `docker compose logs --tail 30 respaldos` y verificar que existan archivos completos `*.archive.gz` en `backups/`. La creación y restauración de una copia real todavía deben validarse.
+
+## Comprobaciones realizadas
+
+Desde `frontend/`: `npm.cmd test`, `npm.cmd run lint` y `npm.cmd run build`.
+
+Las trece pruebas del frontend comprueban los datos, relaciones, CSV, pantallas, reportes y filtros de años. Las doce del backend comprueban modelos, autenticación, sincronización y el contrato HTTP del reporte con modelos simulados. ESLint y la compilación están aprobados.
+
+Desde la raíz: `npm.cmd test` comprueba la lógica del backend con modelos simulados y `npm.cmd run seed -- --check` valida los datos iniciales sin conectarse a MongoDB.
+
+Se conservan evidencias previas de 26 comprobaciones con MongoDB real y 34 en navegador, incluyendo formularios, persistencia tras reiniciar Express, modos online y presentación, sesión, exportaciones y vistas a 320 y 375 px. La creación, edición y eliminación se comprobaron entonces contra una base real; los registros temporales se retiraron al terminar. Estas evidencias no acreditan la ejecución real del nuevo reporte agregado, que todavía debe probarse con MongoDB conectado.
+
+En esta prueba local, las 306 lecturas HTTP de la API quedaron bajo un segundo, con un máximo de 13,883 ms. En veinte cargas del build, el mayor tiempo hasta interfaz lista fue 486,2 ms. Son resultados de este equipo con nueve armas y un cliente; no garantizan el mismo rendimiento con otras redes, equipos o volúmenes de datos.
+
+Las once capturas completas y móviles, los resultados detallados y ejemplos de CSV/PDF están en [evidencias/README.md](evidencias/README.md). La herramienta temporal de navegador se usó fuera de las dependencias del proyecto y se retiró al terminar.
