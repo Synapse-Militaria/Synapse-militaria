@@ -3,15 +3,37 @@ import assert from 'node:assert/strict'
 import { createServer } from 'vite'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { weapons, countries, conflicts, normalizeWeapon, normalizeCountry, normalizeConflict } from '../src/data/mockData.js'
+import { readFileSync } from 'node:fs'
+import { weapons, countries, conflicts, CATEGORIES, normalizeWeapon, normalizeCountry, normalizeConflict } from '../src/data/mockData.js'
 import { weaponCsv, toDocument } from '../src/services/api.js'
 import { demoCountryReport } from '../src/services/reports.js'
 
 test('el catálogo mantiene las relaciones del modelo documental', () => {
-  assert.equal(weapons.length, 9)
+  assert.equal(weapons.length, 27)
+  assert.equal(countries.length, 8)
+  assert.equal(conflicts.length, 12)
+  for (const records of [weapons, countries, conflicts]) assert.equal(new Set(records.map(record => record._id)).size, records.length)
+  for (const category of CATEGORIES.filter(category => category.value)) assert.ok(weapons.some(weapon => weapon.category === category.value), category.label)
+  for (const conflict of conflicts) {
+    assert.ok(conflict.armas_involucradas.length > 0, conflict.name)
+    for (const id of conflict.armas_involucradas) assert.ok(weapons.find(weapon => weapon._id === id)?.eventos.some(event => event.id_evento === conflict._id))
+  }
   for (const weapon of weapons) {
     assert.match(weapon._id, /^[a-f0-9]{24}$/)
     assert.ok(countries.some(country => country._id === weapon.pais_origen.id_pais))
+    assert.ok(weapon.referencias.some(reference => /^https:\/\//.test(reference.url_enlace)), weapon.name)
+    assert.ok(weapon.images.length > 0, weapon.name)
+    for (const path of weapon.images) {
+      if (path.startsWith('/images/')) {
+        const bytes = readFileSync(new URL(`../public${path}`, import.meta.url))
+        assert.equal(bytes.subarray(0, 3).toString('hex'), 'ffd8ff', `${weapon.name}: fotografía JPEG local`)
+      } else {
+        const url = new URL(path)
+        assert.equal(url.protocol, 'https:')
+        assert.equal(url.hostname, 'commons.wikimedia.org')
+        assert.ok(url.pathname.startsWith('/wiki/Special:FilePath/'), `${weapon.name}: fotografía de archivo`)
+      }
+    }
     for (const event of weapon.eventos) {
       const conflict = conflicts.find(conflict => conflict._id === event.id_evento)
       assert.ok(conflict?.armas_involucradas.includes(weapon._id))
@@ -77,9 +99,26 @@ async function render(page, extra = {}) {
 }
 
 test('inicio y enciclopedia presentan las fichas del catálogo', async () => {
-  assert.ok((await render('Home')).includes('Armamento Destacado'))
+  const home = await render('Home')
+  assert.ok(home.includes('Armamento Destacado'))
+  for (const conflict of conflicts) assert.ok(home.includes(conflict.name), conflict.name)
   const catalog = await render('Encyclopedia')
   for (const weapon of weapons) assert.ok(catalog.includes(weapon.nombre))
+})
+
+test('cada conflicto filtra armas y todas las categorías ofrecen resultados', async () => {
+  for (const conflict of conflicts) {
+    const page = await render('Encyclopedia', { initialConflict: conflict._id })
+    assert.ok(!page.includes('No se encontraron armas con estos filtros'), conflict.name)
+    const titles = [...page.matchAll(/<h3[^>]*>(.*?)<\/h3>/g)].map(match => match[1])
+    for (const weapon of weapons) {
+      assert.equal(titles.includes(weapon.name), conflict.armas_involucradas.includes(weapon._id), `${conflict.name}: ${weapon.name}`)
+    }
+  }
+  for (const category of CATEGORIES.filter(category => category.value)) {
+    const page = await render('Encyclopedia', { initialCategory: category.value })
+    assert.ok(!page.includes('No se encontraron armas con estos filtros'), category.label)
+  }
 })
 
 test('la búsqueda sin coincidencias muestra la acción de restablecer', async () => {

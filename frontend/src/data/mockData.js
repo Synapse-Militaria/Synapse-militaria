@@ -1,3 +1,9 @@
+import { additionalCountries, additionalConflicts, buildAdditionalWeapons, buildWeaponEnrichments } from './catalogExpansion.js'
+import { catalogImages } from './catalogImages.js'
+import { catalogImagesExtra } from './catalogImagesExtra.js'
+
+const archiveImages = { ...catalogImages, ...catalogImagesExtra }
+
 // Los nombres en español son los que se guardan en MongoDB.
 // Los alias permiten conservar los componentes del diseño de Figma.
 const categoryByType = {
@@ -136,6 +142,7 @@ export const countries = [
   { _id: oid('002'), nombre: 'Unión Soviética', tipo_faccion: 'Estado', codigo_iso: 'SU', anio_fundacion: 1922, existe_actualmente: false, bandera: 'SU', region: 'Europa y Asia' },
   { _id: oid('003'), nombre: 'Alemania', tipo_faccion: 'Estado', codigo_iso: 'DE', anio_fundacion: 1871, existe_actualmente: true, bandera: '🇩🇪', region: 'Europa' },
   { _id: oid('004'), nombre: 'Reino Unido', tipo_faccion: 'Estado', codigo_iso: 'GB', anio_fundacion: 1801, existe_actualmente: true, bandera: '🇬🇧', region: 'Europa' },
+  ...additionalCountries,
 ].map(normalizeCountry)
 
 const conflictRecords = [
@@ -144,6 +151,7 @@ const conflictRecords = [
   { _id: oid('203'), nombre_conflicto: 'Guerra de Vietnam', fecha_inicio: '1955-11-01', fecha_fin: '1975-04-30', teatro_operaciones: 'Sudeste Asiático', descripcion: 'Conflicto que enfrentó a Vietnam del Norte y el Viet Cong con Vietnam del Sur y sus aliados. Se emplearon armas de diferentes procedencias y generaciones.', facciones: ['Vietnam del Norte y Viet Cong', 'Vietnam del Sur y Estados Unidos'], imagen: '/images/ak47.jpg' },
   { _id: oid('204'), nombre_conflicto: 'Guerra Soviético-Afgana', fecha_inicio: '1979-12-24', fecha_fin: '1989-02-15', teatro_operaciones: 'Afganistán', descripcion: 'Intervención militar soviética en apoyo del gobierno afgano frente a grupos muyahidines. Las fechas corresponden a la intervención soviética y su retirada.', facciones: ['Unión Soviética y gobierno afgano', 'Muyahidines afganos'], imagen: '/images/ak47.jpg' },
   { _id: oid('205'), nombre_conflicto: 'Primera Guerra Mundial', fecha_inicio: '1914-07-28', fecha_fin: '1918-11-11', teatro_operaciones: 'Europa, Oriente Medio y África', descripcion: 'Conflicto entre las potencias de la Entente y los Imperios Centrales. La fecha de término indicada corresponde al armisticio del frente occidental.', facciones: ['Entente', 'Imperios Centrales'], imagen: '/images/m1911.jpg' },
+  ...additionalConflicts,
 ]
 
 function event(conflictSuffix, rol, facciones_usuarias, nota_historica = '') {
@@ -160,7 +168,8 @@ function reference(suffix, detalle_cita, url_enlace) {
 }
 
 function media(suffix, filename, descripcion_imagen, es_portada = true) {
-  return { _id: oid(suffix), url_archivo: `/images/${filename}`, descripcion_imagen, tipo_archivo: 'imagen/jpeg', es_portada }
+  const archive = archiveImages[filename]
+  return { _id: oid(suffix), url_archivo: archive?.url ?? `/images/${filename}`, descripcion_imagen: archive?.caption ?? descripcion_imagen, tipo_archivo: 'imagen/jpeg', es_portada }
 }
 
 function weapon(record) {
@@ -178,7 +187,7 @@ function weapon(record) {
   })
 }
 
-export const weapons = [
+const initialWeapons = [
   weapon({
     _id: oid('102'), nombre: 'AK-47', designacion_oficial: 'Avtomat Kalashnikova', tipo_arma: 'Rifle',
     anio_creacion: 1949, anio_diseno: 1947, epoca_creacion: 'Guerra Fría', pais_origen: oid('002'),
@@ -280,14 +289,27 @@ export const weapons = [
   }),
 ]
 
+export const weaponEnrichments = Object.fromEntries(Object.entries(buildWeaponEnrichments({ event, reference })).map(([suffix, additions]) => [oid(suffix), additions]))
+
+export const weapons = [
+  ...initialWeapons.map(arma => {
+    const additions = weaponEnrichments[arma._id]
+    return additions ? normalizeWeapon({ ...arma, eventos: [...arma.eventos, ...(additions.eventos || [])], referencias: [...arma.referencias, ...(additions.referencias || [])] }) : arma
+  }),
+  ...buildAdditionalWeapons({ weapon, event, reference, media }),
+]
+
 export const conflicts = conflictRecords.map(record => normalizeConflict({
   ...record, conflicto_finalizado: true,
+  imagen: archiveImages[record.imagen?.replace('/images/', '')]?.url ?? record.imagen,
   armas_involucradas: weapons.filter(arma => arma.eventos.some(item => item.id_evento === record._id)).map(arma => arma._id),
-  referencias: [],
+  referencias: record.referencias ?? [],
 }))
 
 export const CATEGORIES = [
   { value: '', label: 'Todos' }, { value: 'rifle', label: 'Rifles' },
   { value: 'pistol', label: 'Pistolas' }, { value: 'submachine-gun', label: 'Subfusiles' },
   { value: 'machine-gun', label: 'Ametralladoras' }, { value: 'tank', label: 'Vehículos blindados' },
+  { value: 'artillery', label: 'Artillería' }, { value: 'launcher', label: 'Lanzadores' },
+  { value: 'melee', label: 'Arma blanca' },
 ]

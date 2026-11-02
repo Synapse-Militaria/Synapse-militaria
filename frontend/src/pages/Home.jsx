@@ -11,7 +11,6 @@ export default function Home({
       search: searchQuery
     });
   }
-  const featured = weapons.slice(0, 4);
   const categoryStats = [{
     cat: 'rifle',
     label: 'RIFLES'
@@ -24,7 +23,23 @@ export default function Home({
   }, {
     cat: 'pistol',
     label: 'PISTOLAS'
-  }];
+  }, {
+    cat: 'tank',
+    label: 'VEHÍCULOS BLINDADOS'
+  }, {
+    cat: 'artillery',
+    label: 'ARTILLERÍA'
+  }, {
+    cat: 'launcher',
+    label: 'LANZADORES'
+  }, {
+    cat: 'melee',
+    label: 'ARMAS BLANCAS'
+  }].map(item => ({ ...item, count: weapons.filter(w => w.category === item.cat).length })).filter(item => item.count > 0);
+  const categoryHighlights = categoryStats.map(item => weapons.find(w => w.category === item.cat));
+  const highlightedIds = new Set(categoryHighlights.map(w => w.id));
+  const featured = [...categoryHighlights, ...weapons.filter(w => !highlightedIds.has(w.id))].slice(0, 8);
+  const chronologicalConflicts = [...conflicts].sort((a, b) => a.startYear - b.startYear);
   return <main>
       <section className="relative min-h-screen flex items-center bg-grid overflow-hidden">
         <div className="absolute inset-0 bg-center bg-cover opacity-10" style={{
@@ -134,15 +149,14 @@ export default function Home({
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border">
             {categoryStats.map(item => {
-            const count = weapons.filter(w => w.category === item.cat).length;
             return <button key={item.cat} onClick={() => navigate({
               view: 'encyclopedia',
               category: item.cat
-            })} className="bg-background hover:bg-muted/60 p-8 text-center group transition-colors">
+            })} className="bg-background hover:bg-muted/60 px-3 py-6 sm:p-8 text-center group transition-colors">
                   <div className="font-mono text-4xl font-bold text-primary group-hover:scale-110 transition-transform inline-block">
-                    {String(count).padStart(2, '0')}
+                    {String(item.count).padStart(2, '0')}
                   </div>
-                  <div className="font-mono text-xs text-muted-foreground tracking-widest mt-2">
+                  <div className="font-mono text-xs text-muted-foreground tracking-wide sm:tracking-widest mt-2">
                     {item.label}
                   </div>
                 </button>;
@@ -151,7 +165,7 @@ export default function Home({
         </div>
       </section>
       <section className="max-w-7xl mx-auto px-6 py-20">
-        <div className="flex items-end justify-between mb-8">
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>
             <div className="font-mono text-xs text-muted-foreground tracking-widest uppercase mb-1">
               Base de datos
@@ -160,9 +174,10 @@ export default function Home({
               Conflictos Registrados
             </h2>
           </div>
+          <p className="font-mono text-xs text-muted-foreground">{conflicts.length} conflictos para explorar</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {conflicts.slice(0, 4).map(conflict => <button key={conflict.id} onClick={() => navigate({ view: 'encyclopedia', conflict: conflict.id })} className="text-left bg-card border border-border hover:border-primary/50 p-5 relative overflow-hidden group">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {chronologicalConflicts.map(conflict => <button key={conflict.id} onClick={() => navigate({ view: 'encyclopedia', conflict: conflict.id })} className="text-left bg-card border border-border hover:border-primary/50 p-5 relative overflow-hidden group">
               <div className="absolute inset-0 opacity-10 bg-center bg-cover group-hover:opacity-20 transition-opacity" style={{
             backgroundImage: `url('${conflict.image}')`
           }} />
@@ -177,6 +192,9 @@ export default function Home({
                 <p className="text-xs text-secondary-foreground leading-relaxed line-clamp-2">
                   {conflict.description}
                 </p>
+                <div className="mt-4 pt-3 border-t border-border font-mono text-xs text-primary">
+                  {weapons.filter(w => w.conflicts.some(event => event.conflictId === conflict.id)).length} armas en el catálogo <span aria-hidden="true">→</span>
+                </div>
               </div>
             </button>)}
         </div>
