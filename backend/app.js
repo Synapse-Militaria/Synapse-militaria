@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const conectarDB = require('./config/database');
 const { armas, reportes, catalogoController, auth, errorHTTP, responderError } = require('./controllers/armaController');
+const { crearLimitadorLogin } = require('./middleware/loginLimiter');
 
 const app = express();
 const origenes = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173').split(',').map(value => value.trim());
@@ -30,7 +31,7 @@ app.get('/', (req, res) => {
   res.status(conectado ? 200 : 503).json({ success: conectado, mensaje: 'Synapse-Militaria — Express y MongoDB', estado: conectado ? 'Online' : 'Sin conexión a MongoDB' });
 });
 
-app.post('/api/auth/login', auth.login);
+app.post('/api/auth/login', crearLimitadorLogin(), auth.login);
 app.post('/api/auth/logout', auth.autenticar, auth.logout);
 app.post('/api/auth/recuperar', auth.recuperar);
 app.get('/api/reportes/armas-por-pais', reportes.armasPorPais);
@@ -46,6 +47,7 @@ app.delete('/api/armas/:id', auth.autenticar, validarId, armas.deleteArma);
 for (const tipo of ['conflictos', 'paises']) {
   const controller = catalogoController(tipo);
   app.get(`/api/${tipo}`, controller.listar);
+  app.get(`/api/${tipo}/:id`, validarId, controller.obtener);
   app.post(`/api/${tipo}`, auth.autenticar, controller.crear);
   app.put(`/api/${tipo}/:id`, auth.autenticar, validarId, controller.actualizar);
   app.delete(`/api/${tipo}/:id`, auth.autenticar, validarId, controller.eliminar);

@@ -27,15 +27,19 @@ La pestaña Referencias edita las fuentes embebidas en las armas o los conflicto
 
 ## Datos, sesión y simulaciones
 
-Al iniciar, la página muestra nueve fichas locales y consulta la API. Si responden los catálogos de armas, países y conflictos, utiliza esos datos, incluso cuando el catálogo está vacío. En ese modo, las operaciones del panel se envían a la API autenticada y se guardan en MongoDB.
+Al iniciar, la página muestra 27 fichas locales, 12 conflictos y 8 países, y consulta la API. El catálogo abarca ocho categorías, desde armas blancas y artillería hasta vehículos blindados, con fotografías de archivo y fuentes enlazadas. El inicio presenta ocho armas destacadas y todos los conflictos en orden cronológico. Si responden los catálogos de armas, países y conflictos, utiliza esos datos, incluso cuando el catálogo está vacío. En ese modo, las operaciones del panel se envían a la API autenticada y se guardan en MongoDB.
 
-Si la API no responde, se mantiene el modo de presentación. En ese modo el ingreso es simulado y los cambios del panel quedan en memoria: se pierden al recargar la página. El panel muestra este aviso.
+Si la API no responde, se mantiene el modo de presentación. En ese modo el ingreso es simulado y los cambios del panel quedan en memoria: se pierden al recargar la página. El aviso permite reintentar la conexión; pide confirmación antes de reemplazar cambios locales y los conserva si la reconexión falla. Al reconectar, se requiere ingresar nuevamente para administrar MongoDB. El timeout predeterminado es de 6000 ms y puede configurarse con `VITE_API_TIMEOUT_MS` en `frontend/.env.local`.
 
 La sesión del frontend está en memoria. Termina al recargar, al cerrar sesión, tras 15 minutos de inactividad o al vencer su duración máxima de 30 minutos.
 
+Las sesiones del backend se guardan en MongoDB con el hash del token y un índice TTL. La API comprueba el vencimiento y que el administrador siga activo antes de autorizar cambios. El login permite cinco intentos por IP cada quince minutos; el límite se desactiva con `NODE_ENV=test`. El almacenamiento de sesiones en memoria y la ejecución sin transacción se reservan a las pruebas sin soporte de MongoDB, no al servidor de producción.
+
+La API ofrece consultas individuales en `GET /api/paises/:id` y `GET /api/conflictos/:id`. Su búsqueda de armas consulta nombre, designación, descripción, etiquetas, calibre, país y conflicto con expresiones regulares escapadas que toleran tildes. Las operaciones compuestas del catálogo usan transacciones y requieren el replica set configurado en Compose; la actualización de armas asociadas a un conflicto se escribe en un solo lote.
+
 La recuperación de contraseña es una simulación: valida el formato del correo y muestra una confirmación. No guarda una solicitud, no genera tokens de recuperación, no envía correos y no cambia contraseñas.
 
-Las fotos y las tipografías se sirven localmente desde `frontend/public/`. Los créditos de fotos están en `frontend/public/images/CREDITOS.md` y las licencias de tipografías en `frontend/public/fonts/LICENCIAS.txt`. Las fuentes históricas se consultan desde los enlaces de cada ficha.
+Las tipografías y las fotografías originales se sirven localmente desde `frontend/public/`. Las 18 fotografías de la ampliación se cargan desde Wikimedia Commons y requieren conexión a internet; no se descargaron porque la autorización de red no se completó. Los créditos de todas las fotos están en `frontend/public/images/CREDITOS.md` y las licencias de tipografías en `frontend/public/fonts/LICENCIAS.txt`. Las fuentes históricas se consultan desde los enlaces de cada ficha.
 
 ## Instalar y ejecutar desde otra copia
 
@@ -55,7 +59,7 @@ docker compose up -d mongodb
 docker compose ps
 ```
 
-Esperar a que el servicio aparezca como `healthy`. MongoDB 8.0 queda disponible solo en `127.0.0.1:27017`, con el volumen persistente `synapse_militaria_mongo`. Si este equipo ya tiene el contenedor anterior `synapse-militaria-mongo`, usar `docker start synapse-militaria-mongo` en lugar de iniciar Compose: ambos usan el mismo puerto y volumen. También se puede usar una instalación propia y configurar su dirección en `MONGO_URI` de `.env`.
+Esperar a que el servicio aparezca como `healthy`. MongoDB 8.0 queda disponible solo en `127.0.0.1:27017`, con el volumen persistente `synapse_militaria_mongo`. Compose inicia automáticamente el replica set de un nodo `rs0` y espera a que sea primario para permitir las transacciones de la API. Si este equipo tiene el contenedor anterior `synapse-militaria-mongo`, detenerlo con `docker stop synapse-militaria-mongo` antes de iniciar Compose; ambos usan el mismo puerto y volumen, y el arranque anterior no habilita el replica set. También se puede usar una instalación propia con soporte de transacciones y configurar su dirección en `MONGO_URI` de `.env`. Si `.env` ya existía, revisar su URI contra `.env.example`; este archivo no se reemplaza automáticamente.
 
 Cargar el catálogo inicial e iniciar la API:
 
@@ -64,7 +68,7 @@ npm.cmd run seed
 npm.cmd start
 ```
 
-El seed crea nueve armas, cuatro países, cinco conflictos y la cuenta administrativa; conserva los documentos que ya existían. La cuenta local de demostración es `admin@synapse-militaria.cl` / `admin123`. Se puede elegir otra cuenta mediante `ADMIN_EMAIL` y `ADMIN_PASSWORD` en `.env` antes de la primera carga; el seed no cambia la contraseña de una cuenta existente. La contraseña se almacena con scrypt y las credenciales no aparecen en el formulario de ingreso.
+El seed incorpora las 27 armas, 8 países, 12 conflictos y la cuenta administrativa; conserva los documentos que ya existían. También añade las nuevas relaciones y referencias sin duplicarlas ni reemplazar las fichas editadas. Para ampliar una base existente, volver a ejecutar `npm.cmd run seed` y recargar la página. La cuenta local de demostración es `admin@synapse-militaria.cl` / `admin123`. Se puede elegir otra cuenta mediante `ADMIN_EMAIL` y `ADMIN_PASSWORD` en `.env` antes de la primera carga; el seed no cambia la contraseña de una cuenta existente. La contraseña se almacena con scrypt y las credenciales no aparecen en el formulario de ingreso.
 
 En una segunda terminal, desde la raíz:
 
@@ -82,7 +86,7 @@ En las siguientes sesiones, iniciar MongoDB con el mismo método elegido, ejecut
 
 ## Respaldos diarios
 
-Con MongoDB administrado por Compose y el catálogo cargado, ejecutar `docker compose up -d respaldos`. El servicio crea una copia completa comprimida de la base `synapse-militaria` al arrancar y después cada 24 horas mientras Docker y el equipo estén encendidos. Los archivos se guardan en `backups/`, excluido de Git. Los fallos se registran y se reintentan cada minuto; un archivo `.partial` no es un respaldo terminado.
+Con MongoDB administrado por Compose y el catálogo cargado, ejecutar `docker compose up -d respaldos`. El servicio crea una copia completa comprimida de la base `synapse-militaria` al arrancar y después cada 24 horas mientras Docker y el equipo estén encendidos. Los archivos se guardan en `backups/`, excluido de Git. Después de completar un respaldo, elimina las copias terminadas de más de 15 días mediante `RETENTION_DAYS`; los archivos `.partial` se conservan para diagnosticar fallos. Los fallos se registran y se reintentan cada minuto; un archivo `.partial` no es un respaldo terminado.
 
 La configuración queda incluida en el repositorio, pero su presencia no significa que el servicio esté activo. Comprobar `docker compose logs --tail 30 respaldos` y verificar que existan archivos completos `*.archive.gz` en `backups/`. La creación y restauración de una copia real todavía deben validarse.
 
@@ -90,7 +94,7 @@ La configuración queda incluida en el repositorio, pero su presencia no signifi
 
 Desde `frontend/`: `npm.cmd test`, `npm.cmd run lint` y `npm.cmd run build`.
 
-Las trece pruebas del frontend comprueban los datos, relaciones, CSV, pantallas, reportes y filtros de años. Las doce del backend comprueban modelos, autenticación, sincronización y el contrato HTTP del reporte con modelos simulados. ESLint y la compilación están aprobados.
+Las pruebas del frontend comprueban los datos, relaciones, fotografías locales, CSV, pantallas, reportes y filtros por años, categoría y conflicto. Las del backend comprueban modelos, autenticación, sincronización, ampliación del seed y el contrato HTTP del reporte con modelos simulados.
 
 Desde la raíz: `npm.cmd test` comprueba la lógica del backend con modelos simulados y `npm.cmd run seed -- --check` valida los datos iniciales sin conectarse a MongoDB.
 
