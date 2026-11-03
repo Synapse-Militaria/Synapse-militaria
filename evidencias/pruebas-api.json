@@ -1,0 +1,196 @@
+{
+  "fecha_local": "2026-11-01",
+  "zona_horaria": "America/Santiago",
+  "ejecutado_utc": "2026-11-01T03:14:37.018Z",
+  "entorno": {
+    "node": "v24.16.0",
+    "mongodb": "8.0.34",
+    "servidor": "MongoDB oficial en Docker Desktop, volumen local persistente, bind 127.0.0.1:27017",
+    "catalogo": {
+      "armas": 9,
+      "paises": 4,
+      "conflictos": 5
+    },
+    "api": "Express ejecutado como proceso Node independiente"
+  },
+  "metodo": "Pruebas HTTP con datos reales, sin mocks, en base aislada temporal. Se reinició Express entre escritura y lectura. Rendimiento: seis rutas, una lectura inicial y 50 lecturas secuenciales adicionales por ruta, midiendo hasta recibir y parsear JSON.",
+  "limitaciones": [
+    "La medición cubre API y MongoDB locales con nueve armas y un cliente secuencial.",
+    "No mide carga concurrente, redes externas ni descarga/renderizado de imágenes del navegador.",
+    "Un resultado local inferior a un segundo no garantiza el mismo tiempo en cualquier equipo o volumen de datos."
+  ],
+  "pruebas": [
+    {
+      "prueba": "Login rechaza contraseña incorrecta",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Login real valida contraseña hasheada en MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "POST sin sesión queda bloqueado",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Crear país en MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Crear conflicto en MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Crear arma con ficha documental completa en MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Crear arma sincroniza la relación inversa del conflicto",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "País vinculado no se elimina accidentalmente",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Conflicto vinculado no se elimina accidentalmente",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Editar país propaga su nombre en las armas",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Editar conflicto propaga datos y conserva el rol histórico",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Editar descripción de arma en MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Crear referencia embebida",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Editar referencia embebida",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Eliminar referencia embebida",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Persistencia tras reiniciar el proceso Express y reconectar MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "El reinicio invalida la sesión anterior",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Se puede iniciar una nueva sesión después de reiniciar",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Quitar evento del arma limpia la relación inversa",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Vincular desde conflicto crea el evento extendido en el arma",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Eliminar arma real de MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Eliminar arma limpia armas_involucradas",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Eliminar conflicto desvinculado",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Eliminar país desvinculado",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Las lecturas medidas responden en menos de un segundo en este entorno local",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Cerrar sesión invalida el token",
+      "resultado": "aprobada"
+    }
+  ],
+  "rendimiento": [
+    {
+      "ruta": "/api/armas",
+      "muestras": 50,
+      "primera_lectura_ms": 9.466,
+      "minimo_ms": 5.08,
+      "mediana_ms": 6.005,
+      "promedio_ms": 6.33,
+      "p95_ms": 8.53,
+      "maximo_ms": 10.594,
+      "todas_menores_a_1000_ms": true
+    },
+    {
+      "ruta": "/api/armas/6713f1a0c9d8e20015a4b101",
+      "muestras": 50,
+      "primera_lectura_ms": 13.883,
+      "minimo_ms": 2.749,
+      "mediana_ms": 3.449,
+      "promedio_ms": 3.648,
+      "p95_ms": 4.855,
+      "maximo_ms": 7.17,
+      "todas_menores_a_1000_ms": true
+    },
+    {
+      "ruta": "/api/armas/6713f1a0c9d8e20015a4b101/conflictos",
+      "muestras": 50,
+      "primera_lectura_ms": 3.092,
+      "minimo_ms": 2.514,
+      "mediana_ms": 3.065,
+      "promedio_ms": 3.144,
+      "p95_ms": 3.756,
+      "maximo_ms": 4.197,
+      "todas_menores_a_1000_ms": true
+    },
+    {
+      "ruta": "/api/armas/buscar?termino=Garand",
+      "muestras": 50,
+      "primera_lectura_ms": 3.657,
+      "minimo_ms": 2.818,
+      "mediana_ms": 3.539,
+      "promedio_ms": 3.665,
+      "p95_ms": 4.789,
+      "maximo_ms": 6.462,
+      "todas_menores_a_1000_ms": true
+    },
+    {
+      "ruta": "/api/conflictos",
+      "muestras": 50,
+      "primera_lectura_ms": 4.703,
+      "minimo_ms": 2.818,
+      "mediana_ms": 3.559,
+      "promedio_ms": 3.666,
+      "p95_ms": 4.523,
+      "maximo_ms": 5.787,
+      "todas_menores_a_1000_ms": true
+    },
+    {
+      "ruta": "/api/paises",
+      "muestras": 50,
+      "primera_lectura_ms": 5.046,
+      "minimo_ms": 2.388,
+      "mediana_ms": 3.232,
+      "promedio_ms": 3.235,
+      "p95_ms": 4.361,
+      "maximo_ms": 4.64,
+      "todas_menores_a_1000_ms": true
+    }
+  ]
+}

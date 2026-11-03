@@ -1,0 +1,334 @@
+{
+  "fecha_local": "2026-11-01",
+  "zona_horaria": "America/Santiago",
+  "navegador": "156.0.8078.74",
+  "herramienta": "Playwright temporal fuera de las dependencias del proyecto",
+  "api": "Express y MongoDB reales",
+  "pruebas": [
+    {
+      "prueba": "Inicio carga catálogo real y fotografías locales",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Buscador de inicio navega y encuentra M1 Garand",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Búsqueda por calibre y país, sin distinguir tildes",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Filtros combinados categoría, país y conflicto",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Búsqueda vacía visible y botón restablece filtros",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Ordenamiento por año y navegación de tarjeta a ficha",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Galería amplía imagen y cierra con Escape",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "CSV se descarga y contiene especificaciones y referencias",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Botón PDF solicita impresión y la ficha tiene estilos de impresión",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Inicio móvil 375px: logo y menú separados, sin desbordamiento",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Catálogo móvil 375px: búsqueda y filtros operativos",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Ficha móvil 375px sin desbordamiento",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Inicio móvil 320px: logo y menú separados, sin desbordamiento",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Catálogo móvil 320px: búsqueda y filtros operativos",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Ficha móvil 320px sin desbordamiento",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Login muestra error real y no revela credenciales en pantalla",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Recuperación muestra una simulación explícita sin correo real",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Login real abre panel conectado a MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Edición de arma por formulario se guarda en MongoDB",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Edición de conflicto actualiza la ficha y sus copias extendidas",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Nueva referencia desde panel queda embebida en el arma",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Crear país desde el panel muestra confirmación verde y persiste",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Recargar exige login y mantiene los registros guardados",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Cancelar eliminación mantiene el registro",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Panel y formulario móvil 375px sin desbordamiento",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Panel y formulario móvil 320px sin desbordamiento",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Cerrar sesión vuelve al inicio y bloquea panel privado",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "No hubo errores JavaScript no controlados",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "API con catálogo vacío mantiene modo online y no sustituye registros por datos demo (respuesta vacía controlada en navegador)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Servidor no disponible activa modo presentación y sus cambios desaparecen al recargar (fallo de red controlado en navegador)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Cierre de sesión por quince minutos de inactividad (reloj del navegador adelantado para la prueba)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Galería de varias imágenes avanza y retrocede entre fotos reales",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Formulario Nuevo Armamento crea una ficha completa en MongoDB (copia temporal de un registro histórico, retirada después)",
+      "resultado": "aprobada"
+    },
+    {
+      "prueba": "Formulario Nuevo Conflicto crea un documento en MongoDB (copia temporal de un registro histórico, retirada después)",
+      "resultado": "aprobada"
+    }
+  ],
+  "geometria": [
+    {
+      "pantalla": "inicio",
+      "viewport": 375,
+      "documento": 375,
+      "cuerpo": 375
+    },
+    {
+      "pantalla": "enciclopedia",
+      "viewport": 375,
+      "documento": 375,
+      "cuerpo": 375
+    },
+    {
+      "pantalla": "ficha",
+      "viewport": 375,
+      "documento": 375,
+      "cuerpo": 375
+    },
+    {
+      "pantalla": "inicio",
+      "viewport": 320,
+      "documento": 320,
+      "cuerpo": 320
+    },
+    {
+      "pantalla": "enciclopedia",
+      "viewport": 320,
+      "documento": 320,
+      "cuerpo": 320
+    },
+    {
+      "pantalla": "ficha",
+      "viewport": 320,
+      "documento": 320,
+      "cuerpo": 320
+    },
+    {
+      "pantalla": "panel",
+      "viewport": 375,
+      "documento": 375,
+      "cuerpo": 375
+    },
+    {
+      "pantalla": "panel",
+      "viewport": 320,
+      "documento": 320,
+      "cuerpo": 320
+    }
+  ],
+  "errores_js": [],
+  "limpieza": "Se restauraron las fichas modificadas y se retiraron el país, las referencias y las copias temporales de armas y conflictos creadas durante la prueba.",
+  "pdf": {
+    "archivo": "exportaciones/m1-garand.pdf",
+    "paginas": 2,
+    "revision": "PDF rasterizado y ambas páginas inspeccionadas visualmente. Sin títulos aislados ni controles de navegación impresos."
+  },
+  "produccion": {
+    "servidor": "Vite preview del build, puerto local 4173, API y MongoDB reales",
+    "metodo": "Cinco cargas por ruta, cada una en un contexto de navegador nuevo a 1440×900. Tiempo desde navegación hasta contenido esperado, respuestas de los tres catálogos, fuentes listas y dos cuadros de renderizado. No incluye el arranque del navegador.",
+    "limitacion": "Prueba local con nueve armas y un solo navegador; no representa carga concurrente ni redes externas.",
+    "mediciones": [
+      {
+        "ruta": "/",
+        "muestras": [
+          {
+            "interfaz_lista_ms": 460,
+            "primer_contenido_ms": 0,
+            "carga_ms": 90.4
+          },
+          {
+            "interfaz_lista_ms": 265.8,
+            "primer_contenido_ms": 196,
+            "carga_ms": 74.6
+          },
+          {
+            "interfaz_lista_ms": 275.8,
+            "primer_contenido_ms": 208,
+            "carga_ms": 70.3
+          },
+          {
+            "interfaz_lista_ms": 285.6,
+            "primer_contenido_ms": 204,
+            "carga_ms": 72
+          },
+          {
+            "interfaz_lista_ms": 261.7,
+            "primer_contenido_ms": 172,
+            "carga_ms": 64.4
+          }
+        ],
+        "maximo_interfaz_lista_ms": 460
+      },
+      {
+        "ruta": "/enciclopedia",
+        "muestras": [
+          {
+            "interfaz_lista_ms": 348,
+            "primer_contenido_ms": 196,
+            "carga_ms": 72.1
+          },
+          {
+            "interfaz_lista_ms": 334.6,
+            "primer_contenido_ms": 216,
+            "carga_ms": 74.4
+          },
+          {
+            "interfaz_lista_ms": 486.2,
+            "primer_contenido_ms": 312,
+            "carga_ms": 108
+          },
+          {
+            "interfaz_lista_ms": 437.3,
+            "primer_contenido_ms": 284,
+            "carga_ms": 99.3
+          },
+          {
+            "interfaz_lista_ms": 410.1,
+            "primer_contenido_ms": 224,
+            "carga_ms": 85.4
+          }
+        ],
+        "maximo_interfaz_lista_ms": 486.2
+      },
+      {
+        "ruta": "/arma/6713f1a0c9d8e20015a4b101",
+        "muestras": [
+          {
+            "interfaz_lista_ms": 315.1,
+            "primer_contenido_ms": 204,
+            "carga_ms": 76.9
+          },
+          {
+            "interfaz_lista_ms": 265.1,
+            "primer_contenido_ms": 192,
+            "carga_ms": 65
+          },
+          {
+            "interfaz_lista_ms": 280.2,
+            "primer_contenido_ms": 200,
+            "carga_ms": 70.7
+          },
+          {
+            "interfaz_lista_ms": 304.9,
+            "primer_contenido_ms": 220,
+            "carga_ms": 78.3
+          },
+          {
+            "interfaz_lista_ms": 297,
+            "primer_contenido_ms": 216,
+            "carga_ms": 73.9
+          }
+        ],
+        "maximo_interfaz_lista_ms": 315.1
+      },
+      {
+        "ruta": "/admin/login",
+        "muestras": [
+          {
+            "interfaz_lista_ms": 193.3,
+            "primer_contenido_ms": 132,
+            "carga_ms": 69.4
+          },
+          {
+            "interfaz_lista_ms": 193.3,
+            "primer_contenido_ms": 144,
+            "carga_ms": 76.3
+          },
+          {
+            "interfaz_lista_ms": 171,
+            "primer_contenido_ms": 128,
+            "carga_ms": 63.5
+          },
+          {
+            "interfaz_lista_ms": 182.6,
+            "primer_contenido_ms": 116,
+            "carga_ms": 61.3
+          },
+          {
+            "interfaz_lista_ms": 165.1,
+            "primer_contenido_ms": 132,
+            "carga_ms": 64.6
+          }
+        ],
+        "maximo_interfaz_lista_ms": 193.3
+      }
+    ]
+  },
+  "revision_capturas": "Once PNG revisados visualmente: pantallas completas y vistas móviles. Capturas tomadas de la aplicación, sin generar imágenes de interfaz."
+}

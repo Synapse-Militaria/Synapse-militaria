@@ -1,5 +1,11 @@
 # Dependencias
 node_modules/
+.reference/
+backups/
+dist/
+dist-ssr/
+*.local
+.idea/
 
 # Variables de entorno
 .env
@@ -15,4 +21,5 @@ pnpm-debug.log*
 # Archivos del sistema y del editor
 .DS_Store
 Thumbs.db
+~$*
 .vscode/

@@ -1,0 +1,106 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/oswald-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 300 600;
+  font-display: swap;
+  src: url('/fonts/source-sans-3-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/source-sans-3-italic-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+}
+
+@theme {
+  --color-background: #080a0f;
+  --color-foreground: #e8e2d4;
+  --color-card: #0f1219;
+  --color-card-foreground: #e8e2d4;
+  --color-primary: #c9a227;
+  --color-primary-foreground: #080a0f;
+  --color-secondary: #1a2035;
+  --color-secondary-foreground: #94a3b8;
+  --color-muted: #141822;
+  --color-muted-foreground: #8a9ab5;
+  --color-accent: #8b1a1a;
+  --color-accent-foreground: #ffd4d4;
+  --color-border: #1e2433;
+  --color-ring: #c9a227;
+
+  --font-sans: 'Source Sans 3', system-ui, sans-serif;
+  --font-heading: 'Oswald', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background-color: #080a0f;
+  color: #e8e2d4;
+  font-family: 'Source Sans 3', system-ui, sans-serif;
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(201, 162, 39, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 162, 39, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1e2433; }
+::-webkit-scrollbar-thumb:hover { background: #c9a227; }
+
+button, a, input, select, textarea { border-radius: 0; }
+button, a { touch-action: manipulation; }
+button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .6; }
+:focus-visible { outline: 2px solid #c9a227; outline-offset: 3px; }
+input, select, textarea { min-width: 0; }
+select { color-scheme: dark; }
+::selection { background: #c9a227; color: #080a0f; }
+.skip-link { position: fixed; top: -100px; left: 1rem; z-index: 100; background: #c9a227; color: #080a0f; padding: .75rem; }
+.skip-link:focus { top: .5rem; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media print {
+  body, .print-sheet { background: white !important; color: black !important; }
+  .no-print, .skip-link { display: none !important; }
+  .print-sheet { padding-top: 0 !important; }
+  .print-sheet * { color: black !important; background: transparent !important; border-color: #bbb !important; text-shadow: none !important; }
+  .print-sheet dialog { display: none !important; }
+  .print-sheet .print-header { height: auto; min-height: 120px; }
+  .print-sheet .print-header > img, .print-sheet .print-header > .absolute { display: none; }
+  .print-sheet .print-title { position: static; padding-top: 1rem; }
+  .print-sheet > .grid { padding: 16px 0 !important; gap: 20px !important; }
+  .print-sheet .space-y-10 > :not([hidden]) ~ :not([hidden]) { margin-top: 20px !important; }
+  .print-sheet section { break-inside: auto; }
+  .print-sheet h2, .print-sheet h3 { break-after: avoid; }
+  .print-sheet dl > div, .print-sheet li { break-inside: avoid; }
+  .print-sheet dl > div { padding-top: 6px !important; padding-bottom: 6px !important; }
+  .print-sheet button[aria-label^="Ampliar imagen"] { max-width: 180px; }
+  .print-sheet img { max-height: 230px; object-fit: contain; }
+}
