@@ -89,7 +89,7 @@ let server
 const props = { weapons, countries, conflicts, navigate: () => {}, onLogout: () => {}, mode: 'demo' }
 
 before(async () => {
-  server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+  server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 })
 after(async () => { await server?.close() })
 
@@ -125,6 +125,16 @@ test('la búsqueda sin coincidencias muestra la acción de restablecer', async (
   const empty = await render('Encyclopedia', { initialSearch: 'sin-coincidencias-123' })
   assert.ok(empty.includes('No se encontraron armas con estos filtros'))
   assert.ok(empty.includes('Restablecer parámetros de búsqueda'))
+})
+
+test('el catálogo y la ficha toleran país y eventos ausentes', async () => {
+  const weapon = { ...weapons[0], pais_origen: null, countryId: '', eventos: null, conflicts: null }
+  const catalog = await render('Encyclopedia', { weapons: [weapon], initialSearch: weapon.name })
+  assert.ok(catalog.includes(weapon.name))
+  assert.ok(catalog.includes('0 conflictos'))
+  const detail = await render('WeaponDetail', { weapons: [weapon], id: weapon._id })
+  assert.ok(detail.includes('Sin país asignado'))
+  assert.ok(detail.includes('No hay conflictos registrados.'))
 })
 
 test('cada ficha incluye sus secciones y ambas exportaciones', async () => {

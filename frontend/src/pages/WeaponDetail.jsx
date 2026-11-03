@@ -24,8 +24,8 @@ export default function WeaponDetail({ id, navigate, weapons, countries, conflic
   </main>
 
   const country = countries.find(c => c.id === weapon.countryId)
-  const events = (remoteEvents || weapon.eventos).map(event => ({
-    ...weapon.eventos.find(e => e.id_evento === event.id_evento), ...event,
+  const events = (remoteEvents ?? weapon.eventos ?? []).map(event => ({
+    ...weapon.eventos?.find(e => e.id_evento === event.id_evento), ...event,
   }))
   const timeline = events.map(event => ({ ...event, conflict: conflicts.find(c => c._id === event.id_evento) || normalizeConflict({ ...event, _id: event.id_evento }) }))
     .sort((a, b) => (a.conflict.startYear || 0) - (b.conflict.startYear || 0))
@@ -49,7 +49,7 @@ export default function WeaponDetail({ id, navigate, weapons, countries, conflic
           </div>
           <div className="sm:text-right shrink-0">
             <div className="font-mono text-4xl sm:text-5xl font-bold text-primary tabular-nums">{weapon.yearIntroduced}</div>
-            <p className="font-mono text-xs text-muted-foreground mt-2">{country?.flag} {country?.name || weapon.pais_origen.nombre}</p>
+            <p className="font-mono text-xs text-muted-foreground mt-2">{country?.flag} {country?.name || weapon.pais_origen?.nombre || 'Sin país asignado'}</p>
           </div>
         </div>
       </div>

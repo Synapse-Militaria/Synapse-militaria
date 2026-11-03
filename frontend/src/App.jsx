@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Nav from './components/Nav'
 import Home from './pages/Home'
 import Encyclopedia from './pages/Encyclopedia'
@@ -73,13 +73,13 @@ function updateCatalog(catalog, collection, record) {
   if (collection === 'weapons') {
     next.conflicts = next.conflicts.map(c => normalizeConflict({ ...c, armas_involucradas: [
       ...(c.armas_involucradas || []).filter(id => id !== item._id),
-      ...(item.eventos.some(e => e.id_evento === c._id) ? [item._id] : []),
+      ...(item.eventos?.some(e => e.id_evento === c._id) ? [item._id] : []),
     ] }))
   }
   if (collection === 'conflicts') {
     next.weapons = next.weapons.map(w => {
-      const previous = w.eventos.find(e => e.id_evento === item._id)
-      const eventos = w.eventos.filter(e => e.id_evento !== item._id)
+      const previous = w.eventos?.find(e => e.id_evento === item._id)
+      const eventos = (w.eventos ?? []).filter(e => e.id_evento !== item._id)
       if (item.armas_involucradas.includes(w._id)) eventos.push({ ...previous, id_evento: item._id, nombre_conflicto: item.nombre_conflicto, fecha_inicio: item.fecha_inicio, fecha_fin: item.fecha_fin, teatro_operaciones: item.teatro_operaciones, rol: previous?.rol || '', facciones_usuarias: previous?.facciones_usuarias || [] })
       return normalizeWeapon({ ...w, eventos })
     })
@@ -93,6 +93,10 @@ export default function App() {
   const [mode, setMode] = useState('loading')
   const [session, setSession] = useState(null)
   const [sessionMessage, setSessionMessage] = useState('')
+  const [localChanges, setLocalChanges] = useState(false)
+  const [connectionError, setConnectionError] = useState('')
+  const connectionAttempt = useRef(0)
+  const reconnecting = useRef(false)
 
   const navigate = useCallback(to => {
     window.history.pushState({}, '', pageUrl(to))
@@ -107,14 +111,38 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    let active = true
+    const attempt = ++connectionAttempt.current
     loadCatalog().then(data => {
-      if (!active) return
+      if (attempt !== connectionAttempt.current) return
       setCatalog(prepareCatalog(data))
       setMode('online')
-    }).catch(() => { if (active) setMode('demo') })
-    return () => { active = false }
+    }).catch(() => { if (attempt === connectionAttempt.current) setMode('demo') })
+    return () => { connectionAttempt.current += 1 }
   }, [])
+
+  async function retryConnection() {
+    if (mode !== 'demo' || reconnecting.current) return
+    if (localChanges && !window.confirm('Tienes cambios locales sin guardar en MongoDB. Al reconectar se reemplazarán por los datos del servidor. ¿Quieres continuar?')) return
+    reconnecting.current = true
+    const attempt = ++connectionAttempt.current
+    setConnectionError('')
+    setMode('loading')
+    try {
+      const data = prepareCatalog(await loadCatalog())
+      if (attempt !== connectionAttempt.current) return
+      setCatalog(data)
+      setLocalChanges(false)
+      setSession(null)
+      setSessionMessage('Conexión restablecida. Ingresa nuevamente para administrar los datos de MongoDB.')
+      setMode('online')
+    } catch {
+      if (attempt !== connectionAttempt.current) return
+      setMode('demo')
+      setConnectionError('No se pudo reconectar. Tus datos locales se conservaron.')
+    } finally {
+      reconnecting.current = false
+    }
+  }
 
   useEffect(() => {
     if (!session) return
@@ -153,6 +181,8 @@ export default function App() {
   }
 
   async function saveRecord(collection, raw) {
+    if (mode === 'loading' || reconnecting.current) throw new Error('Espera a que termine la comprobación de conexión antes de guardar.')
+    if (mode === 'online' && !session?.token) throw new Error('Ingresa nuevamente para guardar en MongoDB.')
     let record = toDocument(raw)
     if (mode === 'online') {
       try {
@@ -161,13 +191,18 @@ export default function App() {
         if (error.status === 401) { setSession(null); setSessionMessage('Tu sesión expiró. Vuelve a ingresar.') }
         throw error
       }
-    } else record = { ...record, _id: record._id || makeId() }
+    } else {
+      record = { ...record, _id: record._id || makeId() }
+      setLocalChanges(true)
+    }
     setCatalog(current => updateCatalog(current, collection, record))
     return normalizers[collection](record)
   }
 
   async function deleteRecord(collection, id) {
-    if (collection !== 'weapons' && catalog.weapons.some(w => collection === 'countries' ? w.pais_origen.id_pais === id : w.eventos.some(e => e.id_evento === id))) {
+    if (mode === 'loading' || reconnecting.current) throw new Error('Espera a que termine la comprobación de conexión antes de eliminar.')
+    if (mode === 'online' && !session?.token) throw new Error('Ingresa nuevamente para guardar en MongoDB.')
+    if (collection !== 'weapons' && catalog.weapons.some(w => collection === 'countries' ? w.pais_origen?.id_pais === id : w.eventos?.some(e => e.id_evento === id))) {
       throw new Error('Este registro está asociado a un arma. Modifica primero la ficha del arma.')
     }
     if (mode === 'online') {
@@ -176,10 +211,10 @@ export default function App() {
         if (error.status === 401) { setSession(null); setSessionMessage('Tu sesión expiró. Vuelve a ingresar.') }
         throw error
       }
-    }
+    } else setLocalChanges(true)
     setCatalog(current => {
       const next = { ...current, [collection]: current[collection].filter(r => r._id !== id) }
-      if (collection === 'weapons') next.conflicts = current.conflicts.map(c => normalizeConflict({ ...c, armas_involucradas: c.armas_involucradas.filter(weaponId => weaponId !== id) }))
+      if (collection === 'weapons') next.conflicts = current.conflicts.map(c => normalizeConflict({ ...c, armas_involucradas: (c.armas_involucradas ?? []).filter(weaponId => weaponId !== id) }))
       return next
     })
   }
@@ -188,6 +223,11 @@ export default function App() {
   return <div className="min-h-screen bg-background text-foreground">
     <a className="skip-link font-mono text-sm" href="#contenido">Saltar al contenido</a>
     <Nav page={page} navigate={navigate} isAdmin={Boolean(session)} onLogout={handleLogout} />
+    {mode !== 'online' && <aside role="status" aria-live="polite" className="no-print fixed bottom-4 left-4 sm:left-auto right-4 z-40 sm:max-w-md border border-primary/30 bg-card px-4 py-3 shadow-lg">
+      <p className="font-mono text-xs text-secondary-foreground">{mode === 'loading' ? 'Comprobando conexión con la API…' : 'Modo de presentación: los cambios quedan en este navegador hasta recargar.'}</p>
+      <button type="button" disabled={mode === 'loading'} onClick={retryConnection} className="mt-2 text-primary font-mono text-xs underline disabled:opacity-50">{mode === 'loading' ? 'Comprobando conexión…' : 'Reintentar conexión con la API'}</button>
+      {connectionError && <p className="mt-2 text-xs text-muted-foreground">{connectionError}</p>}
+    </aside>}
     <div id="contenido">
       {page.view === 'home' && <Home navigate={navigate} {...publicCatalog} />}
       {page.view === 'encyclopedia' && <Encyclopedia key={pageUrl(page)} navigate={navigate} initialSearch={page.search} initialCategory={page.category} initialConflict={page.conflict} {...publicCatalog} />}

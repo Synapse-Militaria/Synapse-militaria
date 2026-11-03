@@ -48,19 +48,19 @@ export default function Encyclopedia({
       const q = fold(search.trim());
       result = result.filter(w => fold([
         w.name, w.designation, w.description, w.tipo_arma, w.category,
-        countries.find(c => c.id === w.countryId)?.name, w.pais_origen.nombre,
+        countries.find(c => c.id === w.countryId)?.name, w.pais_origen?.nombre,
         ...Object.values(w.specs), ...w.tags,
-        ...w.eventos.map(e => e.nombre_conflicto),
+        ...(w.eventos ?? []).map(e => e.nombre_conflicto),
       ].join(' ')).includes(q));
     }
     if (categoryFilter) result = result.filter(w => w.category === categoryFilter);
     if (countryFilter) result = result.filter(w => w.countryId === countryFilter);
-    if (conflictFilter) result = result.filter(w => w.conflicts.some(c => c.conflictId === conflictFilter));
+    if (conflictFilter) result = result.filter(w => w.conflicts?.some(c => c.conflictId === conflictFilter));
     if (yearFrom !== '') result = result.filter(w => w.yearIntroduced != null && w.yearIntroduced >= Number(yearFrom));
     if (yearTo !== '') result = result.filter(w => w.yearIntroduced != null && w.yearIntroduced <= Number(yearTo));
     result.sort((a, b) => {
       if (sortBy === 'year') return a.yearIntroduced - b.yearIntroduced;
-      if (sortBy === 'conflicts') return b.conflicts.length - a.conflicts.length;
+      if (sortBy === 'conflicts') return (b.conflicts?.length ?? 0) - (a.conflicts?.length ?? 0);
       return a.name.localeCompare(b.name);
     });
     return result;
@@ -201,7 +201,7 @@ export default function Encyclopedia({
                       </p>
                       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
                         <span className="font-mono text-xs text-muted-foreground">
-                          {weapon.conflicts.length} conflictos
+                          {weapon.conflicts?.length ?? 0} conflictos
                         </span>
                         <span className="text-border">·</span>
                         <span className="font-mono text-xs text-muted-foreground">

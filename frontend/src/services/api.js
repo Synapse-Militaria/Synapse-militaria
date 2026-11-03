@@ -1,12 +1,17 @@
 const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '')
+const configuredTimeout = Number(import.meta.env?.VITE_API_TIMEOUT_MS)
+const TIMEOUT_MS = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 6000
 
 export async function request(path, { method = 'GET', body, token, signal } = {}) {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 2500)
+  const abort = () => controller.abort(signal?.reason)
+  if (signal?.aborted) abort()
+  else signal?.addEventListener('abort', abort, { once: true })
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
   try {
     const response = await fetch(`${API_URL}${path}`, {
       method,
-      signal: signal || controller.signal,
+      signal: controller.signal,
       headers: {
         ...(body ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -25,6 +30,7 @@ export async function request(path, { method = 'GET', body, token, signal } = {}
     throw new Error('No se pudo conectar con el servidor. Revisa que el backend esté iniciado.', { cause: error })
   } finally {
     clearTimeout(timeout)
+    signal?.removeEventListener('abort', abort)
   }
 }
 

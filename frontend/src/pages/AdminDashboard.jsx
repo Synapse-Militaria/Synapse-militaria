@@ -286,7 +286,7 @@ export default function AdminDashboard({ navigate, onLogout, weapons = [], count
             const oldEvent = record.eventos?.find(item => String(item.id_evento) === id)
             return { ...oldEvent, id_evento: id, nombre_conflicto: conflict.nombre_conflicto, fecha_inicio: conflict.fecha_inicio, fecha_fin: conflict.fecha_fin, teatro_operaciones: conflict.teatro_operaciones, rol: value(`rol_${id}`), facciones_usuarias: value(`facciones_${id}`).split(',').map(item => item.trim()).filter(Boolean), nota_historica: value(`nota_${id}`) }
           }),
-          multimedia: images.map((url, index) => ({ ...(record.multimedia?.find(image => image.url_archivo === url) || { _id: objectId(), descripcion_imagen: value('nombre'), tipo_archivo: 'imagen' }), url_archivo: url, es_portada: index === 0 })),
+          multimedia: images.map((url, index) => ({ ...(record.multimedia?.find(image => image.url_archivo === url) || { _id: objectId(), descripcion_imagen: value('nombre'), tipo_archivo: 'image/jpeg' }), url_archivo: url, es_portada: index === 0 })),
           referencias: record.referencias || [],
         }
       } else if (collection === 'conflicts') {
