@@ -18,4 +18,9 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // Las pruebas se ejecutan con node:test y usan globals de Node (setImmediate, process…).
+    files: ['tests/**/*.js'],
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
+  },
 ])

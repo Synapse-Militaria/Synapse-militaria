@@ -13,6 +13,8 @@ Enciclopedia de armamento histórico con React, Vite y Tailwind CSS. El frontend
 | Ingreso administrativo | Formulario de correo y contraseña, mensajes de error y acceso al panel. |
 | Panel administrativo | Creación, edición y eliminación de armas, conflictos, países/facciones y referencias. Confirmación de guardado y ventana de confirmación al eliminar. |
 
+En Consultas, el botón **Descargar CSV** exporta el reporte de armas por país que está en pantalla como listado cruzado (una fila por arma con el país, su total, año promedio y tipos), en modo online o local, con un nombre de archivo según los filtros aplicados.
+
 La búsqueda ignora mayúsculas y tildes. Cuando no hay coincidencias, muestra un estado vacío con un botón para restablecer todos los filtros.
 
 La navegación utiliza las rutas `/`, `/enciclopedia`, `/consultas`, `/arma/:id`, `/admin/login` y `/admin`, sin recargar la página. Se pueden usar los botones Atrás y Adelante del navegador.

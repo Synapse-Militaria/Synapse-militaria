@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { request } from '../services/api'
 import { demoCountryReport } from '../services/reports'
+import { downloadText } from '../services/csv'
+import { reportCsv, reportCsvFilename } from '../services/reportCsv'
 
 const initialFilters = { anio_desde: '1900', minimo: '1', tipo: '' }
 
@@ -30,6 +32,7 @@ export default function QueryReports({ mode, weapons, countries, navigate }) {
 
   const busy = mode === 'loading' || (mode === 'online' && result.status === 'loading')
   const rows = mode === 'demo' ? demo : result.data
+  const exportCsv = () => downloadText(reportCsv(rows), reportCsvFilename(query))
   const inputClass = 'w-full bg-background border border-border px-3 py-2 text-foreground font-mono text-sm focus:outline-none focus:border-primary'
 
   return <main className="min-h-screen pt-14">
@@ -54,7 +57,10 @@ export default function QueryReports({ mode, weapons, countries, navigate }) {
 
       {mode === 'online' && result.error && <p role="alert" className="text-red-400 border border-red-400/40 p-4 mb-6">{result.error} Vuelve a ejecutar la consulta cuando el servicio esté disponible.</p>}
       {busy ? <p role="status" className="text-muted-foreground py-8">Consultando armas y países…</p> : !result.error || mode === 'demo' ? <>
-        <p role="status" className="font-mono text-xs text-muted-foreground mb-4">{rows.length} países con coincidencias · Desde {query.anio_desde} · Mínimo {query.minimo} armas · {query.tipo || 'Todos los tipos'}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <p role="status" className="font-mono text-xs text-muted-foreground">{rows.length} países con coincidencias · Desde {query.anio_desde} · Mínimo {query.minimo} armas · {query.tipo || 'Todos los tipos'}</p>
+          <button type="button" onClick={exportCsv} disabled={busy || rows.length === 0} className="border border-primary text-primary px-4 py-2 font-mono text-xs uppercase tracking-wide hover:bg-primary hover:text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-primary">Descargar CSV<span className="sr-only"> del reporte de armas por país</span></button>
+        </div>
         {rows.length === 0 ? <p className="border border-border p-8 text-center text-secondary-foreground">No hay países que cumplan estos filtros. Reduce el mínimo o cambia el año inicial.</p> : <div className="overflow-x-auto border border-border">
           <table className="w-full text-sm text-left">
             <caption className="sr-only">Cantidad de armas agrupada por país y filtros aplicados</caption>
