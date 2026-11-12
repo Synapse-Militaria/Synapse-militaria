@@ -1,5 +1,0 @@
-[33me39256d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mentrega3[m[33m, [m[1;31morigin/entrega3[m[33m)[m Merge branch 'entrega3' of https://github.com/Synapse-Militaria/Synapse-militaria into entrega3
-[33m8d58b1b[m Crea schema de base de datos PostgreSQL en database/schema.sql
-[33m28b330c[m agrega boton para descargar en csv el reporte de armas por pais en consultas
-[33m9866557[m[33m ([m[1;31morigin/norelacional[m[33m, [m[1;32mnorelacional[m[33m)[m Corrige transacciones, sesiones y carga del catálogo
-[33ma3305ce[m updeit
