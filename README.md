@@ -86,6 +86,18 @@ Para ver únicamente el modo de presentación, basta con ejecutar los tres coman
 
 En las siguientes sesiones, iniciar MongoDB con el mismo método elegido, ejecutar `npm.cmd start` desde la raíz y `npm.cmd run dev` desde `frontend/`. Para detener el servicio creado con Compose conservando sus datos, usar `docker compose stop mongodb`.
 
+### Usar MongoDB Atlas
+
+Con Atlas no se necesita Docker; se omiten los comandos de `docker compose`.
+
+1. Copiar `.env.example` a `.env` si aún no existe.
+2. Reemplazar `MONGO_URI` por la URI de conexión de Atlas, con el formato del comentario de `.env.example`. La URI debe incluir `/synapse-militaria` antes del `?`; si se omite, los datos quedan en otra base. Si la clave contiene caracteres como `@`, `:`, `/`, `?` o `#`, escribirlos codificados (por ejemplo, `@` como `%40`).
+3. Cambiar `ADMIN_PASSWORD` por una clave propia antes de cargar los datos.
+4. Ejecutar `npm.cmd run seed` una sola vez para crear el catálogo y la cuenta administrativa.
+5. Iniciar la API con `npm.cmd start` y el frontend como se indicó arriba.
+
+El archivo `.env` contiene la URI con la clave y está en `.gitignore`: nunca se sube al repositorio.
+
 ## Respaldos diarios
 
 Con MongoDB administrado por Compose y el catálogo cargado, ejecutar `docker compose up -d respaldos`. El servicio crea una copia completa comprimida de la base `synapse-militaria` al arrancar y después cada 24 horas mientras Docker y el equipo estén encendidos. Los archivos se guardan en `backups/`, excluido de Git. Después de completar un respaldo, elimina las copias terminadas de más de 15 días mediante `RETENTION_DAYS`; los archivos `.partial` se conservan para diagnosticar fallos. Los fallos se registran y se reintentan cada minuto; un archivo `.partial` no es un respaldo terminado.
