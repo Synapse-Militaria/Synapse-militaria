@@ -164,13 +164,16 @@ export default function App() {
   async function handleLogin(email, password) {
     setSessionMessage('')
     if (mode === 'loading') throw new Error('Espera un momento mientras se comprueba la conexión.')
-    if (mode === 'online') {
-      const data = await request('/auth/login', { method: 'POST', body: { email, password } })
-      setSession({ ...data, expiresAt: Number(new Date(data.expiresAt)) })
-    } else {
-      if (email !== 'admin@synapse-militaria.cl' || password !== 'admin123') throw new Error('Credenciales inválidas. Acceso denegado.')
-      setSession({ email, token: null, expiresAt: Date.now() + 30 * 60 * 1000 })
-    }
+    if (mode !== 'online') throw new Error('No hay conexión con el servidor. Usa el modo demostración o reintenta la conexión.')
+    const data = await request('/auth/login', { method: 'POST', body: { email, password } })
+    setSession({ ...data, expiresAt: Number(new Date(data.expiresAt)) })
+    navigate({ view: 'admin' })
+  }
+
+  function handleDemoLogin() {
+    if (mode !== 'demo') return
+    setSessionMessage('')
+    setSession({ email: 'Modo demostración', token: null, expiresAt: Date.now() + 30 * 60 * 1000 })
     navigate({ view: 'admin' })
   }
 
@@ -233,7 +236,7 @@ export default function App() {
       {page.view === 'encyclopedia' && <Encyclopedia key={pageUrl(page)} navigate={navigate} initialSearch={page.search} initialCategory={page.category} initialConflict={page.conflict} {...publicCatalog} />}
       {page.view === 'queries' && <QueryReports mode={mode} navigate={navigate} {...publicCatalog} />}
       {page.view === 'weapon' && <WeaponDetail key={page.id} id={page.id} navigate={navigate} mode={mode} {...(session ? catalog : publicCatalog)} />}
-      {(page.view === 'admin-login' || (page.view === 'admin' && !session)) && <AdminLogin navigate={navigate} onLogin={handleLogin} mode={mode} message={sessionMessage} />}
+      {(page.view === 'admin-login' || (page.view === 'admin' && !session)) && <AdminLogin navigate={navigate} onLogin={handleLogin} onDemoLogin={handleDemoLogin} mode={mode} message={sessionMessage} />}
       {page.view === 'admin' && session && <AdminDashboard navigate={navigate} onLogout={handleLogout} {...catalog} onSave={saveRecord} onDelete={deleteRecord} mode={mode} />}
       {page.view === 'not-found' && <main className="pt-32 px-6 text-center"><h1 className="font-heading text-3xl uppercase mb-6">Página no encontrada</h1><button className="text-primary underline" onClick={() => navigate({ view: 'home' })}>Volver al inicio</button></main>}
     </div>

@@ -4,7 +4,7 @@ import { request } from '../services/api'
 
 const inputClass = 'w-full bg-background border border-border text-foreground font-mono text-sm px-3 py-2.5 placeholder:text-muted-foreground focus:outline-none focus:border-primary'
 
-export default function AdminLogin({ navigate, onLogin, mode, message }) {
+export default function AdminLogin({ navigate, onLogin, onDemoLogin, mode, message }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,7 +28,10 @@ export default function AdminLogin({ navigate, onLogin, mode, message }) {
         <h1 className="font-mono text-xs text-muted-foreground tracking-widest uppercase">Panel de administración</h1>
       </div>
       {message && <p role="status" className="border border-primary/40 text-primary p-3 mb-4 text-sm">{message}</p>}
-      <form onSubmit={handleSubmit} className="bg-card border border-border p-6 space-y-4">
+      {mode === 'demo' ? <div className="bg-card border border-border p-6 space-y-4">
+        <p className="font-mono text-xs text-secondary-foreground leading-relaxed">Modo de presentación sin conexión con el servidor. En este modo los cambios quedan solo en este navegador y se pierden al recargar la página.</p>
+        <button type="button" onClick={onDemoLogin} className="w-full bg-primary text-primary-foreground font-mono text-xs font-semibold py-3 uppercase tracking-widest hover:bg-primary/90">Entrar en modo demostración</button>
+      </div> : <form onSubmit={handleSubmit} className="bg-card border border-border p-6 space-y-4">
         <label className="block">
           <span className="font-mono text-xs text-muted-foreground tracking-widest uppercase block mb-1.5">Correo electrónico</span>
           <input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="username" className={inputClass} required maxLength={254} />
@@ -40,8 +43,7 @@ export default function AdminLogin({ navigate, onLogin, mode, message }) {
         {error && <p role="alert" className="border border-accent bg-accent/15 text-accent-foreground font-mono text-xs px-3 py-3">{error}</p>}
         <button type="submit" disabled={loading || mode === 'loading'} className="w-full bg-primary text-primary-foreground font-mono text-xs font-semibold py-3 uppercase tracking-widest hover:bg-primary/90">{loading ? 'Verificando…' : mode === 'loading' ? 'Comprobando conexión…' : 'Acceder al sistema'}</button>
         <div className="text-center pt-1"><button type="button" onClick={() => setRecovering(true)} className="font-mono text-xs text-muted-foreground hover:text-primary">¿Olvidó su contraseña?</button></div>
-      </form>
-      {mode === 'demo' && <p className="mt-4 font-mono text-xs text-muted-foreground leading-relaxed text-center">Modo de presentación. No se pudo conectar con el servidor. Los cambios quedan en memoria hasta recargar la página.</p>}
+      </form>}
       <div className="text-center mt-5"><button onClick={() => navigate({ view: 'home' })} className="font-mono text-xs text-muted-foreground hover:text-primary uppercase tracking-widest">← Volver al inicio</button></div>
     </div>
     {recovering && <RecoveryModal mode={mode} initialEmail={email} onClose={() => setRecovering(false)} />}

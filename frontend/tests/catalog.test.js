@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createServer } from 'vite'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { weapons, countries, conflicts, CATEGORIES, normalizeWeapon, normalizeCountry, normalizeConflict } from '../src/data/mockData.js'
 import { weaponCsv, toDocument } from '../src/services/api.js'
 import { demoCountryReport } from '../src/services/reports.js'
@@ -145,11 +145,21 @@ test('cada ficha incluye sus secciones y ambas exportaciones', async () => {
   assert.ok((await render('WeaponDetail', { id: 'inexistente' })).includes('Armamento no encontrado'))
 })
 
-test('login usa correo y no muestra credenciales; panel tiene cuatro pestañas', async () => {
-  const login = await render('AdminLogin')
-  assert.ok(login.includes('type="email"'))
-  assert.ok(!login.includes('admin123'))
-  assert.ok(!login.includes('admin@synapse-militaria.cl'))
+test('login usa correo en modo online, botón en modo demo y ningún archivo de src contiene credenciales de prueba; panel tiene cuatro pestañas', async () => {
+  const demoLogin = await render('AdminLogin')
+  assert.ok(demoLogin.includes('Entrar en modo demostración'))
+  assert.ok(!demoLogin.includes('type="email"'))
+  const onlineLogin = await render('AdminLogin', { mode: 'online' })
+  assert.ok(onlineLogin.includes('type="email"'))
+  const srcFiles = readdirSync(new URL('../src', import.meta.url), { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile())
+    .map(entry => new URL(`../src/${entry.parentPath.split(/src[\\/]/)[1] ? `${entry.parentPath.split(/src[\\/]/)[1]}/` : ''}${entry.name}`, import.meta.url))
+  assert.ok(srcFiles.length > 0)
+  for (const file of srcFiles) {
+    const content = readFileSync(file, 'utf8')
+    assert.ok(!content.includes('admin123'), file.pathname)
+    assert.ok(!content.includes('admin@synapse-militaria.cl'), file.pathname)
+  }
   const panel = await render('AdminDashboard')
   for (const label of ['Armamentos', 'Conflictos', 'Países / Facciones', 'Referencias']) assert.ok(panel.includes(label))
 })
