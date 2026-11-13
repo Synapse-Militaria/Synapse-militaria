@@ -7,4 +7,6 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  // En Vercel, VITE_API_URL apunta al mismo dominio (/api) por defecto.
+  // Las variables VITE_* se inyectan en build time y son públicas; nunca poner secretos aquí.
 })

@@ -1,4 +1,6 @@
-const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '')
+import { toCsv, downloadText } from './csv.js'
+
+const API_URL =(import.meta.env?.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '')
 const configuredTimeout = Number(import.meta.env?.VITE_API_TIMEOUT_MS)
 const TIMEOUT_MS = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 6000
 
@@ -60,22 +62,9 @@ function flatten(value, prefix = '', rows = []) {
 }
 
 export function weaponCsv(weapon) {
-  const quote = value => {
-    let text = String(value)
-    if (/^[=+@-]/.test(text)) text = `'${text}`
-    return `"${text.replaceAll('"', '""')}"`
-  }
-  return '\uFEFF' + [['campo', 'valor'], ...flatten(toDocument(weapon))].map(row => row.map(quote).join(',')).join('\r\n')
+  return toCsv([['campo', 'valor'], ...flatten(toDocument(weapon))])
 }
 
 export function downloadCsv(weapon) {
-  const blob = new Blob([weaponCsv(weapon)], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `synapse-${weapon.nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadText(weaponCsv(weapon), `synapse-${weapon.nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`)
 }

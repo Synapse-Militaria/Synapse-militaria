@@ -13,6 +13,8 @@ Enciclopedia de armamento histórico con React, Vite y Tailwind CSS. El frontend
 | Ingreso administrativo | Formulario de correo y contraseña, mensajes de error y acceso al panel. |
 | Panel administrativo | Creación, edición y eliminación de armas, conflictos, países/facciones y referencias. Confirmación de guardado y ventana de confirmación al eliminar. |
 
+En Consultas, el botón **Descargar CSV** exporta el reporte de armas por país que está en pantalla como listado cruzado (una fila por arma con el país, su total, año promedio y tipos), en modo online o local, con un nombre de archivo según los filtros aplicados.
+
 La búsqueda ignora mayúsculas y tildes. Cuando no hay coincidencias, muestra un estado vacío con un botón para restablecer todos los filtros.
 
 La navegación utiliza las rutas `/`, `/enciclopedia`, `/consultas`, `/arma/:id`, `/admin/login` y `/admin`, sin recargar la página. Se pueden usar los botones Atrás y Adelante del navegador.
@@ -84,6 +86,18 @@ Para ver únicamente el modo de presentación, basta con ejecutar los tres coman
 
 En las siguientes sesiones, iniciar MongoDB con el mismo método elegido, ejecutar `npm.cmd start` desde la raíz y `npm.cmd run dev` desde `frontend/`. Para detener el servicio creado con Compose conservando sus datos, usar `docker compose stop mongodb`.
 
+### Usar MongoDB Atlas
+
+Con Atlas no se necesita Docker; se omiten los comandos de `docker compose`.
+
+1. Copiar `.env.example` a `.env` si aún no existe.
+2. Reemplazar `MONGO_URI` por la URI de conexión de Atlas, con el formato del comentario de `.env.example`. La URI debe incluir `/synapse-militaria` antes del `?`; si se omite, los datos quedan en otra base. Si la clave contiene caracteres como `@`, `:`, `/`, `?` o `#`, escribirlos codificados (por ejemplo, `@` como `%40`).
+3. Cambiar `ADMIN_PASSWORD` por una clave propia antes de cargar los datos.
+4. Ejecutar `npm.cmd run seed` una sola vez para crear el catálogo y la cuenta administrativa.
+5. Iniciar la API con `npm.cmd start` y el frontend como se indicó arriba.
+
+El archivo `.env` contiene la URI con la clave y está en `.gitignore`: nunca se sube al repositorio.
+
 ## Respaldos diarios
 
 Con MongoDB administrado por Compose y el catálogo cargado, ejecutar `docker compose up -d respaldos`. El servicio crea una copia completa comprimida de la base `synapse-militaria` al arrancar y después cada 24 horas mientras Docker y el equipo estén encendidos. Los archivos se guardan en `backups/`, excluido de Git. Después de completar un respaldo, elimina las copias terminadas de más de 15 días mediante `RETENTION_DAYS`; los archivos `.partial` se conservan para diagnosticar fallos. Los fallos se registran y se reintentan cada minuto; un archivo `.partial` no es un respaldo terminado.
@@ -97,6 +111,47 @@ Desde `frontend/`: `npm.cmd test`, `npm.cmd run lint` y `npm.cmd run build`.
 Las pruebas del frontend comprueban los datos, relaciones, fotografías locales, CSV, pantallas, reportes y filtros por años, categoría y conflicto. Las del backend comprueban modelos, autenticación, sincronización, ampliación del seed y el contrato HTTP del reporte con modelos simulados.
 
 Desde la raíz: `npm.cmd test` comprueba la lógica del backend con modelos simulados y `npm.cmd run seed -- --check` valida los datos iniciales sin conectarse a MongoDB.
+
+## Desplegar en Vercel
+
+El proyecto soporta deployment en Vercel con el frontend como sitio estático y el backend como serverless function.
+
+### Requisitos
+
+- Cuenta en [Vercel](https://vercel.com)
+- Base de datos en [MongoDB Atlas](https://www.mongodb.com/atlas) (la URI local no funciona en Vercel)
+
+### Pasos
+
+1. Importar el repositorio en Vercel desde el dashboard.
+2. Configurar las **Environment Variables** en Vercel (Settings > Environment Variables):
+
+   | Variable | Valor |
+   | --- | --- |
+   | `MONGO_URI` | URI de MongoDB Atlas (`mongodb+srv://...`) |
+   | `FRONTEND_ORIGINS` | URL del deployment (ej: `https://synapse-militaria.vercel.app`) |
+   | `ADMIN_EMAIL` | Correo del administrador |
+   | `ADMIN_PASSWORD` | Contraseña segura para producción |
+
+3. Hacer deploy. Vercel detecta `vercel.json` automáticamente.
+
+### Seguridad
+
+- Las variables de entorno se configuran **solo en el dashboard de Vercel**, nunca en el código.
+- Los headers de seguridad (HSTS, X-Frame-Options, Permissions-Policy) se aplican automáticamente mediante `vercel.json`.
+- Los errores 500 en producción no exponen detalles internos ni stack traces.
+- El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
+- Las variables `VITE_*` del frontend se inyectan en build time y son públicas: no poner secretos en ellas.
+
+### Ejecución del seed en producción
+
+El seed no se ejecuta automáticamente en Vercel. Para cargar los datos iniciales en Atlas, ejecutar localmente apuntando a la URI de Atlas:
+
+```powershell
+$env:MONGO_URI="mongodb+srv://USUARIO:CLAVE@CLUSTER.mongodb.net/synapse-militaria?retryWrites=true&w=majority"
+$env:ADMIN_PASSWORD="contraseña-segura-de-produccion"
+npm.cmd run seed
+```
 
 Se conservan evidencias previas de 26 comprobaciones con MongoDB real y 34 en navegador, incluyendo formularios, persistencia tras reiniciar Express, modos online y presentación, sesión, exportaciones y vistas a 320 y 375 px. La creación, edición y eliminación se comprobaron entonces contra una base real; los registros temporales se retiraron al terminar. Estas evidencias no acreditan la ejecución real del nuevo reporte agregado, que todavía debe probarse con MongoDB conectado.
 
