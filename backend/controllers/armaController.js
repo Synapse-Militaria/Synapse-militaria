@@ -1,7 +1,9 @@
-const { randomBytes, scrypt, timingSafeEqual, createHash } = require('node:crypto');
+const { randomBytes, scrypt, timingSafeEqual } = require('node:crypto');
 const { promisify } = require('node:util');
 const mongoose = require('mongoose');
-const { Arma, Pais, Conflicto, Administrador, Sesion } = require('../models/armaModel');
+const neon = require('../neon');
+const { firmarToken, verificarToken } = require('../config/jwt');
+const { Arma, Pais, Conflicto } = require('../models/armaModel');
 
 function errorHTTP(status, message) {
   const error = new Error(message);
@@ -108,18 +110,16 @@ async function sincronizarConflicto(conflicto, session = null) {
 }
 
 const scryptAsync = promisify(scrypt);
-const sesiones = new Map();
-const DURACION_SESION = 30 * 60 * 1000;
-const hashToken = token => createHash('sha256').update(token).digest('hex');
+const HASH_FICTICIO = `scrypt:${'00'.repeat(16)}:${'00'.repeat(64)}`;
+const ROLES_ADMIN = new Set(['Administrador General', 'Administrador']);
 
-function limpiarSesiones() {
-  for (const [token, sesion] of sesiones) if (sesion.expiresAt <= Date.now()) sesiones.delete(token);
-}
-
-function almacenamientoSesiones() {
-  if (mongoose.connection.readyState === 1) return 'mongo';
-  if (entornoPruebas()) return 'memoria';
-  throw errorHTTP(503, 'No hay conexión con MongoDB para comprobar la sesión.');
+async function consultarPostgres(sql, params) {
+  try {
+    return await neon.query(sql, params);
+  } catch {
+    // No se exponen detalles internos, URIs ni mensajes del driver de Postgres.
+    throw errorHTTP(503, 'Servicio de autenticación no disponible temporalmente.');
+  }
 }
 
 async function crearHash(password) {
@@ -136,19 +136,33 @@ async function verificarPassword(password, hash) {
 }
 
 async function autenticar(req, res, next) {
-  limpiarSesiones();
-  const token = typeof req.headers.authorization === 'string' ? req.headers.authorization.match(/^Bearer ([a-f0-9]{64})$/i)?.[1] : null;
+  const token = typeof req.headers.authorization === 'string'
+    ? req.headers.authorization.match(/^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/)?.[1]
+    : null;
   if (!token) return next(errorHTTP(401, 'La sesión venció. Inicia sesión nuevamente.'));
-  const token_hash = hashToken(token);
-  const enMongo = almacenamientoSesiones() === 'mongo';
-  const sesion = enMongo
-    ? await Sesion.findOne({ token_hash, expiresAt: { $gt: new Date() } })
-    : sesiones.get(token_hash);
-  if (!sesion || Number(sesion.expiresAt) <= Date.now() || (enMongo && !await Administrador.exists({ _id: sesion.id_admin, cuenta_activa: true }))) {
-    if (!enMongo) sesiones.delete(token_hash);
+  let payload;
+  try {
+    payload = verificarToken(token);
+  } catch {
     return next(errorHTTP(401, 'La sesión venció. Inicia sesión nuevamente.'));
   }
-  req.admin = sesion;
+  const id = Number(payload?.sub);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return next(errorHTTP(401, 'La sesión venció. Inicia sesión nuevamente.'));
+  }
+  let resultado;
+  try {
+    resultado = await consultarPostgres(
+      'SELECT u.id, u.email, r.nombre AS rol FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.id = $1 AND u.cuenta_activa = true',
+      [id]
+    );
+  } catch (error) {
+    return next(error);
+  }
+  const usuario = resultado.rows?.[0];
+  if (!usuario) return next(errorHTTP(401, 'La sesión venció. Inicia sesión nuevamente.'));
+  if (!ROLES_ADMIN.has(usuario.rol)) return next(errorHTTP(403, 'No tienes permiso para esta acción.'));
+  req.admin = { id: usuario.id, email: usuario.email, rol: usuario.rol };
   req.token = token;
   next();
 }
@@ -158,25 +172,21 @@ async function login(req, res) {
   if (typeof email !== 'string' || typeof password !== 'string' || email.length > 254 || password.length > 200) {
     throw errorHTTP(400, 'Ingresa un correo y una contraseña válidos.');
   }
-  const almacenamiento = almacenamientoSesiones();
-  const admin = await Administrador.findOne({ email: email.trim().toLowerCase(), cuenta_activa: true }).select('+password_hash');
-  if (!admin || !await verificarPassword(password, admin.password_hash)) throw errorHTTP(401, 'Credenciales inválidas. Acceso denegado.');
-  limpiarSesiones();
-  const token = randomBytes(32).toString('hex');
-  const data = { token, email: admin.email, expiresAt: Date.now() + DURACION_SESION };
-  admin.ultimo_acceso = new Date();
-  await admin.save();
-  if (almacenamiento === 'mongo') {
-    await Sesion.create({ token_hash: hashToken(token), id_admin: admin._id, email: admin.email, expiresAt: new Date(data.expiresAt) });
-  } else sesiones.set(hashToken(token), { email: admin.email, expiresAt: data.expiresAt });
-  res.json({ success: true, data });
+  const emailNormalizado = email.trim().toLowerCase();
+  const resultado = await consultarPostgres(
+    'SELECT u.id, u.email, u.password_hash, r.nombre AS rol FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.email = $1 AND u.cuenta_activa = true',
+    [emailNormalizado]
+  );
+  const cuenta = resultado.rows?.[0];
+  const valida = await verificarPassword(password, cuenta ? cuenta.password_hash : HASH_FICTICIO);
+  if (!cuenta || !valida) throw errorHTTP(401, 'Credenciales inválidas. Acceso denegado.');
+  await consultarPostgres('UPDATE usuarios SET ultimo_acceso = now() WHERE id = $1', [cuenta.id]);
+  const { token, expiresAt } = firmarToken({ id: cuenta.id, email: cuenta.email, rol: cuenta.rol });
+  res.json({ success: true, data: { token, email: cuenta.email, expiresAt } });
 }
 
 async function logout(req, res) {
-  limpiarSesiones();
-  const token_hash = hashToken(req.token);
-  if (almacenamientoSesiones() === 'mongo') await Sesion.deleteOne({ token_hash });
-  else sesiones.delete(token_hash);
+  // Con JWT sin estado en servidor, el token sigue siendo criptográficamente válido hasta que vence (30 minutos); el frontend lo descarta al cerrar sesión.
   res.json({ success: true, data: null });
 }
 
