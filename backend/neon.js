@@ -1,13 +1,35 @@
 const { Pool } = require('pg');
 
-const neonUri = process.env.NEON_URI;
+// Quita sslmode y uselibpqcompat de la URI para que el SSL quede definido solo por
+// la opción ssl del Pool (y pg no muestre su advertencia sobre sslmode).
+function limpiarUri(uri) {
+  const url = new URL(uri);
+  url.searchParams.delete('sslmode');
+  url.searchParams.delete('uselibpqcompat');
+  return url.toString();
+}
 
-const pool = neonUri
-  ? new Pool({
-      connectionString: neonUri,
-      ssl: { rejectUnauthorized: false }
-    })
-  : null;
+function crearPool(uri) {
+  if (!uri) return null;
+  let connectionString;
+  try {
+    connectionString = limpiarUri(uri);
+  } catch {
+    // No se imprime la dirección: puede contener usuario y contraseña.
+    console.error('Error: NEON_URI no tiene un formato de URL válido. Revisa la variable de entorno.');
+    return null;
+  }
+  return new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: true },
+    // Límites bajos: en Vercel cada función serverless abre su propio pool.
+    max: 5,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 10000,
+  });
+}
+
+const pool = crearPool(process.env.NEON_URI);
 
 async function conectarNeon() {
   if (!pool) return false;
