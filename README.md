@@ -112,6 +112,47 @@ Las pruebas del frontend comprueban los datos, relaciones, fotografías locales,
 
 Desde la raíz: `npm.cmd test` comprueba la lógica del backend con modelos simulados y `npm.cmd run seed -- --check` valida los datos iniciales sin conectarse a MongoDB.
 
+## Desplegar en Vercel
+
+El proyecto soporta deployment en Vercel con el frontend como sitio estático y el backend como serverless function.
+
+### Requisitos
+
+- Cuenta en [Vercel](https://vercel.com)
+- Base de datos en [MongoDB Atlas](https://www.mongodb.com/atlas) (la URI local no funciona en Vercel)
+
+### Pasos
+
+1. Importar el repositorio en Vercel desde el dashboard.
+2. Configurar las **Environment Variables** en Vercel (Settings > Environment Variables):
+
+   | Variable | Valor |
+   | --- | --- |
+   | `MONGO_URI` | URI de MongoDB Atlas (`mongodb+srv://...`) |
+   | `FRONTEND_ORIGINS` | URL del deployment (ej: `https://synapse-militaria.vercel.app`) |
+   | `ADMIN_EMAIL` | Correo del administrador |
+   | `ADMIN_PASSWORD` | Contraseña segura para producción |
+
+3. Hacer deploy. Vercel detecta `vercel.json` automáticamente.
+
+### Seguridad
+
+- Las variables de entorno se configuran **solo en el dashboard de Vercel**, nunca en el código.
+- Los headers de seguridad (HSTS, X-Frame-Options, Permissions-Policy) se aplican automáticamente mediante `vercel.json`.
+- Los errores 500 en producción no exponen detalles internos ni stack traces.
+- El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
+- Las variables `VITE_*` del frontend se inyectan en build time y son públicas: no poner secretos en ellas.
+
+### Ejecución del seed en producción
+
+El seed no se ejecuta automáticamente en Vercel. Para cargar los datos iniciales en Atlas, ejecutar localmente apuntando a la URI de Atlas:
+
+```powershell
+$env:MONGO_URI="mongodb+srv://USUARIO:CLAVE@CLUSTER.mongodb.net/synapse-militaria?retryWrites=true&w=majority"
+$env:ADMIN_PASSWORD="contraseña-segura-de-produccion"
+npm.cmd run seed
+```
+
 Se conservan evidencias previas de 26 comprobaciones con MongoDB real y 34 en navegador, incluyendo formularios, persistencia tras reiniciar Express, modos online y presentación, sesión, exportaciones y vistas a 320 y 375 px. La creación, edición y eliminación se comprobaron entonces contra una base real; los registros temporales se retiraron al terminar. Estas evidencias no acreditan la ejecución real del nuevo reporte agregado, que todavía debe probarse con MongoDB conectado.
 
 En esta prueba local, las 306 lecturas HTTP de la API quedaron bajo un segundo, con un máximo de 13,883 ms. En veinte cargas del build, el mayor tiempo hasta interfaz lista fue 486,2 ms. Son resultados de este equipo con nueve armas y un cliente; no garantizan el mismo rendimiento con otras redes, equipos o volúmenes de datos.

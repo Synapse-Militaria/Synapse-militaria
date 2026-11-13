@@ -13,7 +13,11 @@ function responderError(error, req, res, next) {
   if (res.headersSent) return next(error);
   const validacion = ['ValidationError', 'CastError', 'StrictModeError'].includes(error.name);
   const status = error.status || (validacion || error.type === 'entity.parse.failed' ? 400 : error.code === 11000 ? 409 : 500);
-  const message = status === 500 ? 'No se pudo completar la operación. Revisa la conexión con MongoDB.' : error.code === 11000 ? 'Ya existe un registro con estos datos.' : error.message;
+  // En producción, los errores 500 nunca exponen detalles internos ni stack traces.
+  const enProduccion = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+  const message = status === 500
+    ? (enProduccion ? 'Error interno del servidor.' : 'No se pudo completar la operación. Revisa la conexión con MongoDB.')
+    : error.code === 11000 ? 'Ya existe un registro con estos datos.' : error.message;
   res.status(status).json({ success: false, message });
 }
 
