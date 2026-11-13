@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS usuarios (
   creado_en TIMESTAMPTZ DEFAULT now()
 );
 
+-- Para bases creadas con la versión anterior del schema: CREATE TABLE IF NOT EXISTS
+-- no agrega columnas a una tabla usuarios que ya existe, así que se añaden aquí.
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cuenta_activa BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ultimo_acceso TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS favoritos (
   id SERIAL PRIMARY KEY,
   usuario_id INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
