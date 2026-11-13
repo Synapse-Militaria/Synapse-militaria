@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const conectarDB = require('./config/database');
-require('./neon');
+const neon = require('./neon');
 const { armas, reportes, catalogoController, auth, errorHTTP, responderError } = require('./controllers/armaController');
 const { crearLimitadorLogin } = require('./middleware/loginLimiter');
 
@@ -31,6 +31,32 @@ function validarId(req, res, next) {
 app.get('/', (req, res) => {
   const conectado = mongoose.connection.readyState === 1;
   res.status(conectado ? 200 : 503).json({ success: conectado, mensaje: 'Synapse-Militaria — Express y MongoDB', estado: conectado ? 'Online' : 'Sin conexión a MongoDB' });
+});
+
+const LIMITE_ESTADO_POSTGRES_MS = 3000;
+
+async function estadoPostgres() {
+  if (!neon.pool) return 'no configurada';
+  let temporizador;
+  const limite = new Promise((_, rechazar) => {
+    temporizador = setTimeout(() => rechazar(new Error('tiempo agotado')), LIMITE_ESTADO_POSTGRES_MS);
+  });
+  try {
+    // async () => ... también convierte en rechazo un error lanzado de forma síncrona.
+    await Promise.race([(async () => neon.query('SELECT 1'))(), limite]);
+    return 'conectada';
+  } catch {
+    // No se exponen hosts, URIs ni mensajes internos.
+    return 'sin conexión';
+  } finally {
+    clearTimeout(temporizador);
+  }
+}
+
+app.get('/api/estado', async (req, res) => {
+  const mongodb = mongoose.connection.readyState === 1 ? 'conectada' : 'sin conexión';
+  const postgresql = await estadoPostgres();
+  res.json({ success: true, bases: { mongodb, postgresql } });
 });
 
 app.post('/api/auth/login', crearLimitadorLogin(), auth.login);
