@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const conectarDB = require('./config/database');
+require('./neon');
 const { armas, reportes, catalogoController, auth, errorHTTP, responderError } = require('./controllers/armaController');
 const { crearLimitadorLogin } = require('./middleware/loginLimiter');
 
