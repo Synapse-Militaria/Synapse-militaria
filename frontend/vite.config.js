@@ -7,6 +7,7 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  // En Vercel, VITE_API_URL apunta al mismo dominio (/api) por defecto.
+  // Redirige /api al backend local en preview, para que npm run preview funcione igual que en Vercel.
   // Las variables VITE_* se inyectan en build time y son públicas; nunca poner secretos aquí.
+  preview: { proxy: { '/api': 'http://localhost:3000' } },
 })

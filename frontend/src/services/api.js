@@ -1,8 +1,17 @@
 import { toCsv, downloadText } from './csv.js'
 
-const API_URL =(import.meta.env?.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '')
-const configuredTimeout = Number(import.meta.env?.VITE_API_TIMEOUT_MS)
-const TIMEOUT_MS = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 6000
+export function resolverApiUrl(env) {
+  if (env?.VITE_API_URL) return env.VITE_API_URL.replace(/\/$/, '')
+  return env?.PROD ? '/api' : 'http://localhost:3000/api'
+}
+
+export function resolverTimeout(env) {
+  const valor = Number(env?.VITE_API_TIMEOUT_MS)
+  return Number.isFinite(valor) && valor > 0 ? valor : 15000
+}
+
+const API_URL = resolverApiUrl(import.meta.env ?? {})
+const TIMEOUT_MS = resolverTimeout(import.meta.env ?? {})
 
 export async function request(path, { method = 'GET', body, token, signal } = {}) {
   const controller = new AbortController()
