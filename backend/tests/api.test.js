@@ -1,8 +1,12 @@
 const { test, before, after, afterEach, mock } = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const neon = require('../neon');
+const { firmarToken } = require('../config/jwt');
 const { app } = require('../app');
-const { Arma, Conflicto, Administrador, Pais, Sesion } = require('../models/armaModel');
+const { Arma, Conflicto, Pais } = require('../models/armaModel');
 const { catalogoController, crearHash, completarArma, ejecutarConTransaccion, armas, auth } = require('../controllers/armaController');
 const { insertarSiNoExiste, sincronizarRelacionesIniciales, incorporarAmpliaciones } = require('../seed');
 
@@ -228,12 +232,34 @@ test('no se puede crear una ficha sin sesión', async () => {
 
 test('login valida el hash y una sesión permite guardar y eliminar una ficha', async () => {
   const password_hash = await crearHash('clave-de-prueba');
-  const admin = { email: 'admin@example.cl', password_hash, save: async () => {} };
-  mock.method(Administrador, 'findOne', () => ({ select: async () => admin }));
-  const iniciar = password => fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: admin.email, password }) });
-  assert.equal((await iniciar('incorrecta')).status, 401);
-  const sesion = (await (await iniciar('clave-de-prueba')).json()).data;
+  const admin = { id: 7, email: 'admin@example.cl', password_hash, rol: 'Administrador General', cuenta_activa: true };
+  let ultimoAccesoActualizado = 0;
+  mock.method(neon, 'query', async (sql, params) => {
+    if (sql.includes('WHERE u.email = $1')) {
+      return { rows: params[0] === admin.email && admin.cuenta_activa ? [{ id: admin.id, email: admin.email, password_hash: admin.password_hash, rol: admin.rol }] : [] };
+    }
+    if (sql.includes('UPDATE usuarios SET ultimo_acceso')) {
+      assert.deepEqual(params, [admin.id]);
+      ultimoAccesoActualizado += 1;
+      return { rowCount: 1 };
+    }
+    if (sql.includes('WHERE u.id = $1')) {
+      return { rows: params[0] === admin.id && admin.cuenta_activa ? [{ id: admin.id, email: admin.email, rol: admin.rol }] : [] };
+    }
+    throw new Error(`Consulta no esperada: ${sql}`);
+  });
+  const iniciar = (email, password) => fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  const claveIncorrecta = await iniciar(admin.email, 'incorrecta');
+  assert.equal(claveIncorrecta.status, 401);
+  const correoInexistente = await iniciar('inexistente@example.cl', 'clave-de-prueba');
+  assert.equal(correoInexistente.status, 401);
+  assert.equal((await claveIncorrecta.json()).message, (await correoInexistente.json()).message);
+  assert.equal(ultimoAccesoActualizado, 0);
+  const sesion = (await (await iniciar(`  ${admin.email.toUpperCase()} `, 'clave-de-prueba')).json()).data;
+  assert.equal(ultimoAccesoActualizado, 1);
   assert.ok(sesion.token);
+  assert.equal(sesion.email, admin.email);
+  assert.ok(Number.isFinite(sesion.expiresAt));
   assert.equal(sesion.password_hash, undefined);
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion.token}` };
   mock.method(Arma.prototype, 'save', async function () { return this; });
@@ -247,8 +273,9 @@ test('login valida el hash y una sesión permite guardar y eliminar una ficha', 
   assert.equal((await editada.json()).data.descripcion, 'Ficha histórica revisada para la enciclopedia.');
   mock.method(Arma, 'findByIdAndDelete', async () => new Arma(datosArma));
   assert.equal((await fetch(`${base}/api/armas/${datosArma._id}`, { method: 'DELETE', headers })).status, 200);
-  assert.equal((await fetch(`${base}/api/auth/logout`, { method: 'POST', headers })).status, 200);
-  assert.equal((await fetch(`${base}/api/armas`, { method: 'POST', headers, body: JSON.stringify(datosArma) })).status, 401);
+  const cierre = await fetch(`${base}/api/auth/logout`, { method: 'POST', headers });
+  assert.equal(cierre.status, 200);
+  assert.deepEqual(await cierre.json(), { success: true, data: null });
 });
 
 test('editar un país actualiza las copias extendidas en las armas', async () => {
@@ -399,51 +426,79 @@ test('el servidor real no degrada a escrituras sin transacción', async () => {
   }
 });
 
-test('las sesiones persistidas guardan solo el hash, comprueban la cuenta y se eliminan al cerrar', async () => {
-  mongoose.connection._readyState = 1;
-  const admin = { _id: new mongoose.Types.ObjectId(), email: 'persistente@example.cl', password_hash: await crearHash('clave-persistente'), save: async () => {} };
-  mock.method(Administrador, 'findOne', () => ({ select: async () => admin }));
-  let guardada;
-  mock.method(Sesion, 'create', async data => { guardada = data; return data; });
-  let respuesta;
-  await auth.login({ body: { email: admin.email, password: 'clave-persistente' } }, { json: data => { respuesta = data; } });
-  assert.match(guardada.token_hash, /^[a-f0-9]{64}$/);
-  assert.notEqual(guardada.token_hash, respuesta.data.token);
-  assert.equal(guardada.token, undefined);
-  assert.equal(Number(guardada.expiresAt), respuesta.data.expiresAt);
-  assert.equal(String(guardada.id_admin), String(admin._id));
-  mock.method(Sesion, 'findOne', async filtro => {
-    assert.equal(filtro.token_hash, guardada.token_hash);
-    assert.ok(filtro.expiresAt.$gt instanceof Date);
-    return guardada;
+test('login y autenticar usan Postgres y JWT, actualizan ultimo_acceso y logout no consulta bases', async () => {
+  const password_hash = await crearHash('clave-persistente');
+  const usuario = { id: 15, email: 'persistente@example.cl', password_hash, rol: 'Administrador' };
+  const consultas = [];
+  mock.method(neon, 'query', async (sql, params) => {
+    consultas.push({ sql, params });
+    if (sql.includes('WHERE u.email = $1')) return { rows: [usuario] };
+    if (sql.includes('UPDATE usuarios SET ultimo_acceso')) return { rowCount: 1 };
+    if (sql.includes('WHERE u.id = $1')) return { rows: [{ id: usuario.id, email: usuario.email, rol: 'Administrador General' }] };
+    throw new Error(`Consulta no esperada: ${sql}`);
   });
-  mock.method(Administrador, 'exists', async filtro => { assert.equal(filtro.cuenta_activa, true); return true; });
+  let respuesta;
+  await auth.login({ body: { email: usuario.email, password: 'clave-persistente' } }, { json: data => { respuesta = data; } });
+  assert.equal(consultas.length, 2);
+  assert.match(consultas[1].sql, /UPDATE usuarios SET ultimo_acceso = now\(\) WHERE id = \$1/);
+  assert.deepEqual(consultas[1].params, [usuario.id]);
   const req = { headers: { authorization: `Bearer ${respuesta.data.token}` } };
   let error;
   await auth.autenticar(req, {}, value => { error = value; });
   assert.equal(error, undefined);
-  assert.equal(req.admin.email, admin.email);
-  const eliminar = mock.method(Sesion, 'deleteOne', async filtro => { assert.equal(filtro.token_hash, guardada.token_hash); });
+  assert.deepEqual(req.admin, { id: usuario.id, email: usuario.email, rol: 'Administrador General' });
+  const antesLogout = consultas.length;
   await auth.logout(req, { json: data => { respuesta = data; } });
-  assert.equal(eliminar.mock.callCount(), 1);
+  assert.equal(consultas.length, antesLogout);
   assert.deepEqual(respuesta, { success: true, data: null });
-  assert.ok(Sesion.schema.indexes().some(([key, opts]) => key.expiresAt === 1 && opts.expireAfterSeconds === 0));
 });
 
-test('una sesión vencida o de una cuenta desactivada no da acceso aunque aún exista en MongoDB', async () => {
-  mongoose.connection._readyState = 1;
-  let expiresAt = new Date(Date.now() - 1);
-  mock.method(Sesion, 'findOne', async () => ({ id_admin: datosArma._id, expiresAt }));
-  const cuenta = mock.method(Administrador, 'exists', async () => false);
-  const req = { headers: { authorization: `Bearer ${'a'.repeat(64)}` } };
-  let error;
-  await auth.autenticar(req, {}, value => { error = value; });
-  assert.equal(error.status, 401);
-  assert.equal(cuenta.mock.callCount(), 0);
-  expiresAt = new Date(Date.now() + 60000);
-  await auth.autenticar(req, {}, value => { error = value; });
-  assert.equal(error.status, 401);
-  assert.equal(cuenta.mock.callCount(), 1);
+test('token vencido o con otra clave, cuenta desactivada, rol sin permiso y caída de Postgres responden 401, 403 y 503', async () => {
+  const previo = process.env.JWT_SECRET;
+  const clave = crypto.randomBytes(48).toString('hex');
+  process.env.JWT_SECRET = clave;
+  try {
+    let estadoCuenta = { id: 21, email: 'admin@example.cl', rol: 'Administrador', activa: true, disponible: true };
+    const consulta = mock.method(neon, 'query', async () => {
+      if (!estadoCuenta.disponible) throw new Error('connect ECONNREFUSED host-interno:5432');
+      if (!estadoCuenta.activa) return { rows: [] };
+      return { rows: [{ id: estadoCuenta.id, email: estadoCuenta.email, rol: estadoCuenta.rol }] };
+    });
+    const ahora = Math.floor(Date.now() / 1000);
+    const vencido = jwt.sign({ email: estadoCuenta.email, rol: 'Administrador', iat: ahora - 3600, exp: ahora - 60 }, clave, { algorithm: 'HS256', subject: '21' });
+    const otraClave = jwt.sign({ email: estadoCuenta.email, rol: 'Administrador' }, crypto.randomBytes(48).toString('hex'), { algorithm: 'HS256', subject: '21', expiresIn: 1800 });
+
+    for (const tokenInvalido of [vencido, otraClave, 'no-es-jwt']) {
+      let error;
+      await auth.autenticar({ headers: { authorization: `Bearer ${tokenInvalido}` } }, {}, value => { error = value; });
+      assert.equal(error.status, 401);
+    }
+    assert.equal(consulta.mock.callCount(), 0);
+
+    const { token } = firmarToken({ id: estadoCuenta.id, email: estadoCuenta.email, rol: 'Administrador' });
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+    estadoCuenta.activa = false;
+    assert.equal((await fetch(`${base}/api/armas`, { method: 'POST', headers, body: JSON.stringify(datosArma) })).status, 401);
+
+    estadoCuenta.activa = true;
+    estadoCuenta.rol = 'Usuario';
+    const prohibido = await fetch(`${base}/api/armas`, { method: 'POST', headers, body: JSON.stringify(datosArma) });
+    assert.equal(prohibido.status, 403);
+    assert.equal((await prohibido.json()).message, 'No tienes permiso para esta acción.');
+
+    estadoCuenta.disponible = false;
+    const sinConexionAuth = await fetch(`${base}/api/armas`, { method: 'POST', headers, body: JSON.stringify(datosArma) });
+    assert.equal(sinConexionAuth.status, 503);
+    assert.ok(!(await sinConexionAuth.text()).includes('host-interno'));
+
+    const sinConexionLogin = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'admin@example.cl', password: 'clave' }) });
+    assert.equal(sinConexionLogin.status, 503);
+    assert.ok(!(await sinConexionLogin.text()).includes('host-interno'));
+  } finally {
+    if (previo === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = previo;
+  }
 });
 
 test('multimedia acepta el MIME estándar y los valores históricos del seed', async () => {
