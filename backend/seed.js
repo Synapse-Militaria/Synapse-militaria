@@ -1,7 +1,78 @@
 const mongoose = require('mongoose');
 const conectarDB = require('./config/database');
-const { Arma, Conflicto, Pais, Administrador } = require('./models/armaModel');
+const neon = require('./neon');
+const { Arma, Conflicto, Pais } = require('./models/armaModel');
 const { crearHash, completarArma, copiarEvento } = require('./controllers/armaController');
+
+const ROL_ADMIN_INICIAL = 'Administrador General';
+const LARGO_MINIMO_CLAVE = 12;
+const LARGO_MAXIMO_CLAVE = 128;
+
+// Muestra solo la primera letra del correo y su dominio (por ejemplo, a***@dominio.cl).
+function ocultarEmail(email) {
+  const [usuario, dominio] = email.split('@');
+  return `${usuario.slice(0, 1)}***@${dominio}`;
+}
+
+function problemasDeCuenta(email, password) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'ADMIN_EMAIL no tiene un formato de correo válido.';
+  if (password.toLowerCase() === 'admin123') return 'ADMIN_PASSWORD no puede ser admin123.';
+  if (password.length < LARGO_MINIMO_CLAVE || password.length > LARGO_MAXIMO_CLAVE) {
+    return `ADMIN_PASSWORD debe tener entre ${LARGO_MINIMO_CLAVE} y ${LARGO_MAXIMO_CLAVE} caracteres.`;
+  }
+  const usuario = email.split('@')[0];
+  if (password.toLowerCase().includes(usuario)) return 'ADMIN_PASSWORD no puede contener la parte del correo antes de la @.';
+  return null;
+}
+
+// Crea la cuenta de Administrador General en PostgreSQL (Neon). Todos usan la misma
+// base de Neon, así que nunca se crea una cuenta con contraseña por defecto.
+async function crearAdministradorInicial() {
+  const emailEnv = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!emailEnv || !emailEnv.trim() || !password) {
+    console.warn('No se creó la cuenta de administrador: define ADMIN_EMAIL y ADMIN_PASSWORD (12 caracteres o más) en el .env o en las variables de entorno y vuelve a ejecutar el seed.');
+    return { estado: 'omitida', motivo: 'faltan-variables' };
+  }
+  const email = emailEnv.trim().toLowerCase();
+  const problema = problemasDeCuenta(email, password);
+  if (problema) {
+    console.warn(`No se creó la cuenta de administrador: ${problema}`);
+    return { estado: 'omitida', motivo: 'datos-invalidos' };
+  }
+  if (!neon.pool) {
+    console.warn('No se creó la cuenta de administrador: falta NEON_URI, la cuenta se guarda en PostgreSQL (Neon).');
+    return { estado: 'omitida', motivo: 'sin-neon' };
+  }
+
+  let roles;
+  try {
+    roles = await neon.query('SELECT id FROM roles WHERE nombre = $1', [ROL_ADMIN_INICIAL]);
+  } catch {
+    throw new Error('No se pudo consultar PostgreSQL (Neon) para crear la cuenta de administrador. Revisa NEON_URI y la conexión.');
+  }
+  if (!roles.rows.length) {
+    throw new Error(`No existe el rol '${ROL_ADMIN_INICIAL}' en la tabla roles. Primero hay que aplicar database/schema.sql en Neon.`);
+  }
+
+  const passwordHash = await crearHash(password);
+  let resultado;
+  try {
+    resultado = await neon.query(
+      "INSERT INTO usuarios (nombre, email, password_hash, rol_id) VALUES ('Administrador', $1, $2, $3) ON CONFLICT (email) DO NOTHING RETURNING id",
+      [email, passwordHash, roles.rows[0].id]
+    );
+  } catch {
+    throw new Error('No se pudo crear la cuenta de administrador en PostgreSQL (Neon). Revisa NEON_URI y la conexión.');
+  }
+
+  if (resultado.rows.length) {
+    console.log(`Cuenta de administrador ${ocultarEmail(email)} creada en PostgreSQL con el rol ${ROL_ADMIN_INICIAL}.`);
+    return { estado: 'creada' };
+  }
+  console.log(`La cuenta de administrador ${ocultarEmail(email)} ya existía en PostgreSQL; no se cambió su contraseña.`);
+  return { estado: 'existente' };
+}
 
 async function insertarSiNoExiste(Modelo, datos, preparar) {
   for (const dato of datos) {
@@ -86,18 +157,18 @@ async function seed() {
   await insertarSiNoExiste(Arma, weapons, completarArma);
   await incorporarAmpliaciones(weaponEnrichments);
   await sincronizarRelacionesIniciales(weapons.map(arma => arma._id));
-  const email = (process.env.ADMIN_EMAIL || 'admin@synapse-militaria.cl').trim().toLowerCase();
-  if (!await Administrador.exists({ email })) {
-    await Administrador.create({ email, password_hash: await crearHash(process.env.ADMIN_PASSWORD || 'admin123'), rol: 'Administrador General' });
-  }
   console.log(`Catálogo inicial actualizado: ${weapons.length} armas, ${countries.length} países y ${conflicts.length} conflictos. Se conservaron los datos existentes y se añadieron las nuevas relaciones.`);
+  await crearAdministradorInicial();
 }
 
 if (require.main === module) {
   seed().catch(error => {
     console.error('No se pudo completar el seed:', error.message);
     process.exitCode = 1;
-  }).finally(() => mongoose.disconnect());
+  }).finally(async () => {
+    await mongoose.disconnect().catch(() => {});
+    if (neon.pool) await neon.pool.end().catch(() => {});
+  });
 }
 
-module.exports = { validarCatalogo, insertarSiNoExiste, sincronizarRelacionesIniciales, incorporarAmpliaciones };
+module.exports = { validarCatalogo, insertarSiNoExiste, sincronizarRelacionesIniciales, incorporarAmpliaciones, crearAdministradorInicial };

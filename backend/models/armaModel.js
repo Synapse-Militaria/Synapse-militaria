@@ -104,26 +104,8 @@ conflictoSchema.pre('validate', function () {
   }
 });
 
-const adminSchema = new mongoose.Schema({
-  email: { type: String, required: true, trim: true, lowercase: true, unique: true },
-  password_hash: { type: String, required: true, select: false },
-  rol: { type: String, default: 'Administrador' },
-  cuenta_activa: { type: Boolean, default: true },
-  ultimo_acceso: Date,
-}, { collection: 'Administradores', versionKey: false });
-
-const sesionSchema = new mongoose.Schema({
-  token_hash: { type: String, required: true, unique: true, select: false },
-  id_admin: { type: mongoose.Schema.Types.ObjectId, ref: 'Administrador', required: true },
-  email: texto(true),
-  expiresAt: { type: Date, required: true },
-}, { collection: 'Sesiones', versionKey: false });
-sesionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-
 module.exports = {
   Arma: mongoose.model('Arma', armaSchema),
   Pais: mongoose.model('Pais', paisSchema),
   Conflicto: mongoose.model('Conflicto', conflictoSchema),
-  Administrador: mongoose.model('Administrador', adminSchema),
-  Sesion: mongoose.model('Sesion', sesionSchema),
 };

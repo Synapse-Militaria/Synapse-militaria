@@ -70,7 +70,7 @@ npm.cmd run seed
 npm.cmd start
 ```
 
-El seed incorpora las 27 armas, 8 países, 12 conflictos y la cuenta administrativa; conserva los documentos que ya existían. También añade las nuevas relaciones y referencias sin duplicarlas ni reemplazar las fichas editadas. Para ampliar una base existente, volver a ejecutar `npm.cmd run seed` y recargar la página. La cuenta `admin@synapse-militaria.cl` / `admin123` es solo una cuenta de ejemplo para desarrollo local, que se crea si no se definen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, y la página publicada usa otra contraseña que no está en el repositorio. Se puede elegir otra cuenta mediante `ADMIN_EMAIL` y `ADMIN_PASSWORD` en `.env` antes de la primera carga; el seed no cambia la contraseña de una cuenta existente. La contraseña se almacena con scrypt y las credenciales no aparecen en el formulario de ingreso.
+El seed carga en MongoDB las 27 armas, 8 países y 12 conflictos; conserva los documentos que ya existían. También añade las nuevas relaciones y referencias sin duplicarlas ni reemplazar las fichas editadas. Para ampliar una base existente, volver a ejecutar `npm.cmd run seed` y recargar la página. La cuenta de administrador se crea en PostgreSQL (Neon) solo si se definen `ADMIN_EMAIL` y `ADMIN_PASSWORD` (12 caracteres o más) en `.env`; no existe una contraseña por defecto, y el seed no cambia la contraseña de una cuenta que ya existe. Como todos usan la misma base de Neon, una cuenta creada en local también existe en la página publicada. La contraseña se almacena con scrypt y las credenciales no aparecen en el formulario de ingreso.
 
 En una segunda terminal, desde la raíz:
 
@@ -92,8 +92,8 @@ Con Atlas no se necesita Docker; se omiten los comandos de `docker compose`.
 
 1. Copiar `.env.example` a `.env` si aún no existe.
 2. Reemplazar `MONGO_URI` por la URI de conexión de Atlas, con el formato del comentario de `.env.example`. La URI debe incluir `/synapse-militaria` antes del `?`; si se omite, los datos quedan en otra base. Si la clave contiene caracteres como `@`, `:`, `/`, `?` o `#`, escribirlos codificados (por ejemplo, `@` como `%40`).
-3. Cambiar `ADMIN_PASSWORD` por una clave propia antes de cargar los datos.
-4. Ejecutar `npm.cmd run seed` una sola vez para crear el catálogo y la cuenta administrativa.
+3. Definir `ADMIN_PASSWORD` con una clave propia de 12 caracteres o más antes de cargar los datos. Para crear la cuenta también hace falta `NEON_URI` (ver [Usar Neon (PostgreSQL)](#usar-neon-postgresql)).
+4. Ejecutar `npm.cmd run seed` una sola vez para crear el catálogo en MongoDB y la cuenta administrativa en PostgreSQL (Neon).
 5. Iniciar la API con `npm.cmd start` y el frontend como se indicó arriba.
 
 Si aparece el error `querySrv ECONNREFUSED`, ocurre cuando la red local no resuelve las consultas DNS de tipo SRV que usa la cadena `mongodb+srv://`. Se soluciona usando en `MONGO_URI` la cadena estándar (Atlas → Connect → Drivers → interruptor "Legacy URI String"), que empieza con `mongodb://` y trae las direcciones de los servidores escritas.
@@ -114,11 +114,11 @@ El proyecto reparte la información entre dos motores:
 
 2. Aplicar `database/schema.sql` en el editor SQL de Neon. Se puede repetir sin riesgo (`IF NOT EXISTS` en tablas, columnas e índices, y `ON CONFLICT DO NOTHING` en los roles iniciales) y hay que repetirlo cada vez que el schema cambie.
 
-3. Migrar la cuenta de administrador con:
+3. Solo para bases creadas antes de que el seed creara la cuenta directamente en PostgreSQL: migrar la cuenta de administrador con:
    ```powershell
    npm.cmd run migrar:admin
    ```
-   Este comando copia las cuentas de administrador de MongoDB (colección `Administradores`) a la tabla `usuarios` de PostgreSQL (Neon), asignándoles su rol correspondiente (`Administrador General` o `Administrador`). Necesita `MONGO_URI` y `NEON_URI` en el `.env` (o en las variables de entorno). Las cuentas que ya existen (mismo email) no se tocan. Al terminar, muestra un resumen con las cuentas leídas en MongoDB, insertadas en PostgreSQL, ya existentes y omitidas (por email o hash inválido), y advierte si no hay ningún Administrador General activo.
+   En una instalación nueva no hace falta, porque ahora `npm.cmd run seed` crea la cuenta directamente en PostgreSQL. Este comando copia las cuentas de administrador de MongoDB (colección `Administradores`) a la tabla `usuarios` de PostgreSQL (Neon), asignándoles su rol correspondiente (`Administrador General` o `Administrador`). Necesita `MONGO_URI` y `NEON_URI` en el `.env` (o en las variables de entorno). Las cuentas que ya existen (mismo email) no se tocan. Al terminar, muestra un resumen con las cuentas leídas en MongoDB, insertadas en PostgreSQL, ya existentes y omitidas (por email o hash inválido), y advierte si no hay ningún Administrador General activo.
 
 4. Comprobar en `/api/estado` (en local en `http://localhost:3000/api/estado` y en el link de Vercel en `https://tu-proyecto.vercel.app/api/estado`) que las dos bases digan "conectada":
    ```json
@@ -194,14 +194,15 @@ El seed no se ejecuta automáticamente en Vercel. Para cargar los datos iniciale
 
 ```powershell
 $env:MONGO_URI="mongodb+srv://USUARIO:CLAVE@CLUSTER.mongodb.net/synapse-militaria?retryWrites=true&w=majority"
+$env:NEON_URI="postgresql://USUARIO:CLAVE@HOST/neondb?sslmode=require"
 $env:ADMIN_EMAIL="admin@tu-dominio.cl"
 $env:ADMIN_PASSWORD="contraseña-segura-de-produccion"
 npm.cmd run seed
 ```
 
-> **Advertencia:** Nunca ejecutes el seed contra las bases de la nube sin definir `ADMIN_EMAIL` y `ADMIN_PASSWORD`, porque si no, crea la cuenta de ejemplo con `admin123`.
+> **Advertencia:** El seed ya no crea cuentas con contraseña por defecto. Si faltan `ADMIN_EMAIL`, `ADMIN_PASSWORD` o `NEON_URI`, o si la clave tiene menos de 12 caracteres, es `admin123` o contiene la parte del correo antes de la @, carga el catálogo pero no crea la cuenta y explica el motivo. Como la base de Neon es la misma en local y en producción, la cuenta que se cree queda activa en la página publicada.
 
-Luego de cargar los datos en MongoDB, ejecutar la migración para copiar la cuenta de administrador a PostgreSQL en Neon:
+Solo para bases creadas antes de que el seed creara la cuenta directamente en PostgreSQL: ejecutar la migración para copiar la cuenta de administrador de MongoDB a PostgreSQL en Neon (en una instalación nueva no hace falta):
 
 ```powershell
 $env:NEON_URI="postgresql://USUARIO:CLAVE@HOST/neondb?sslmode=require"

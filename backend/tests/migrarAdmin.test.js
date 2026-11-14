@@ -1,10 +1,10 @@
 const { test, afterEach, mock } = require('node:test');
 const assert = require('node:assert/strict');
+const mongoose = require('mongoose');
 const neon = require('../neon');
-const { Administrador } = require('../models/armaModel');
 const { migrarAdministradores } = require('../scripts/migrarAdmin');
 
-// Ninguna prueba se conecta a una base real: neon.query y Administrador.find se simulan.
+// Ninguna prueba se conecta a una base real: neon.query y la colección Administradores se simulan.
 const HASH_VALIDO = `scrypt:${'a1'.repeat(16)}:${'b2'.repeat(64)}`;
 const HASH_VALIDO_2 = `scrypt:${'c3'.repeat(16)}:${'d4'.repeat(64)}`;
 const ROLES = [{ id: 1, nombre: 'Administrador General' }, { id: 2, nombre: 'Administrador' }];
@@ -12,13 +12,16 @@ const ROLES = [{ id: 1, nombre: 'Administrador General' }, { id: 2, nombre: 'Adm
 afterEach(() => mock.restoreAll());
 
 function simularMongo(cuentas) {
-  const llamadas = { select: [] };
-  mock.method(Administrador, 'find', () => ({
-    select(campos) {
-      llamadas.select.push(campos);
-      return { lean: async () => cuentas.map(cuenta => ({ ...cuenta })) };
-    },
-  }));
+  const llamadas = { colecciones: [], filtros: [] };
+  mock.method(mongoose.connection, 'collection', nombre => {
+    llamadas.colecciones.push(nombre);
+    return {
+      find(filtro) {
+        llamadas.filtros.push(filtro);
+        return { toArray: async () => cuentas.map(cuenta => ({ ...cuenta })) };
+      },
+    };
+  });
   return llamadas;
 }
 
@@ -58,7 +61,8 @@ test('copia el mismo hash sin cambiarlo y el resto de los datos de la cuenta', a
 
   const resumen = await migrarAdministradores();
 
-  assert.deepEqual(mongo.select, ['+password_hash']);
+  assert.deepEqual(mongo.colecciones, ['Administradores']);
+  assert.deepEqual(mongo.filtros, [{}]);
   assert.equal(inserts.length, 1);
   assert.equal(inserts[0].password_hash, HASH_VALIDO);
   assert.equal(inserts[0].nombre, 'Administrador');
@@ -127,5 +131,5 @@ test('se detiene sin insertar nada si falta un rol en la tabla roles', async () 
 
   await assert.rejects(migrarAdministradores(), /Administrador General.*database\/schema\.sql/);
   assert.equal(inserts.length, 0);
-  assert.equal(mongo.select.length, 0);
+  assert.equal(mongo.colecciones.length, 0);
 });

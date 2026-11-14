@@ -1,10 +1,11 @@
 // Copia las cuentas de administrador de MongoDB (colección Administradores) a la
 // tabla usuarios de PostgreSQL (Neon). Es seguro ejecutarlo más de una vez:
 // las cuentas que ya existen (mismo email) no se tocan.
+// Solo sirve para bases creadas antes de que el seed creara la cuenta directamente en
+// PostgreSQL: el modelo Administrador ya no existe, así que se lee la colección tal cual.
 const mongoose = require('mongoose');
 const conectarDB = require('../config/database');
 const neon = require('../neon');
-const { Administrador } = require('../models/armaModel');
 
 const ROL_GENERAL = 'Administrador General';
 const ROL_ADMIN = 'Administrador';
@@ -28,7 +29,8 @@ async function migrarAdministradores() {
   const faltantes = [ROL_GENERAL, ROL_ADMIN].filter(nombre => !idRol.has(nombre));
   if (faltantes.length) throw new RolesFaltantesError(faltantes);
 
-  const cuentas = await Administrador.find().select('+password_hash').lean();
+  // Sin el modelo, find() devuelve todos los campos, incluido password_hash.
+  const cuentas = await mongoose.connection.collection('Administradores').find({}).toArray();
   const resumen = { leidas: cuentas.length, insertadas: 0, existentes: 0, omitidas: 0, hayAdminGeneralActivo: false };
 
   for (const cuenta of cuentas) {
