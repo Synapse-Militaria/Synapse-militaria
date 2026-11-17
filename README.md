@@ -35,13 +35,66 @@ Si la API no responde, se mantiene el modo de presentación. En ese modo el ingr
 
 La sesión del frontend está en memoria. Termina al recargar, al cerrar sesión, tras 15 minutos de inactividad o al vencer su duración máxima de 30 minutos.
 
-El login busca la cuenta en la tabla `usuarios` de PostgreSQL, compara la clave con scrypt y entrega un JWT (firmado con algoritmo HS256) con una duración de 30 minutos. En cada solicitud protegida, la API revisa el token y el rol actual en PostgreSQL antes de autorizar cambios; solo los roles Administrador General y Administrador pueden modificar el catálogo. Al ser un esquema de tokens sin estado en el servidor, el cierre de sesión no invalida el token en el servidor, sino que el frontend lo descarta. El login permite cinco intentos por IP cada quince minutos; el límite se desactiva con `NODE_ENV=test`.
-
 La API ofrece consultas individuales en `GET /api/paises/:id` y `GET /api/conflictos/:id`. Su búsqueda de armas consulta nombre, designación, descripción, etiquetas, calibre, país y conflicto con expresiones regulares escapadas que toleran tildes. Las operaciones compuestas del catálogo usan transacciones y requieren el replica set configurado en Compose; la actualización de armas asociadas a un conflicto se escribe en un solo lote.
 
-La recuperación de contraseña es una simulación: valida el formato del correo y muestra una confirmación. No guarda una solicitud, no genera tokens de recuperación, no envía correos y no cambia contraseñas.
-
 Las tipografías y las fotografías originales se sirven localmente desde `frontend/public/`. Las 18 fotografías de la ampliación se cargan desde Wikimedia Commons y requieren conexión a internet; no se descargaron porque la autorización de red no se completó. Los créditos de todas las fotos están en `frontend/public/images/CREDITOS.md` y las licencias de tipografías en `frontend/public/fonts/LICENCIAS.txt`. Las fuentes históricas se consultan desde los enlaces de cada ficha.
+
+### Inicio de sesión con JWT
+
+El inicio de sesión (`POST /api/auth/login`) busca la cuenta activa (`cuenta_activa = true`) en la tabla `usuarios` de PostgreSQL (Neon) mediante un `JOIN` con `roles`, compara la clave con `scrypt` (`timingSafeEqual`), actualiza `ultimo_acceso` y entrega un JWT. El frontend lo guarda solo en memoria y lo envía en cada solicitud protegida como `Authorization: Bearer <token>`. En cada ruta protegida, la API verifica la firma y vigencia del token y vuelve a consultar en PostgreSQL que la cuenta siga activa y con rol de administrador. Las colecciones `Administradores` y `Sesiones` de MongoDB ya no las usa el login; solo se leen en `npm.cmd run migrar:admin` para bases antiguas.
+
+| Ruta | Autenticación | Descripción |
+| --- | --- | --- |
+| `POST /api/auth/login` | Sin token (con límite de intentos) | Valida credenciales en PostgreSQL, actualiza `ultimo_acceso` y emite el JWT. |
+| `POST /api/auth/logout` | Requiere `Bearer <token>` | Confirma el cierre de sesión para que el frontend descarte el token en memoria. |
+| `POST /api/auth/recuperar` | Sin token (simulación) | Simulación académica de recuperación de contraseña. |
+| `POST /api/armas`, `PUT /api/armas/:id`, `DELETE /api/armas/:id` | Requiere `Bearer <token>` | Creación, edición y eliminación de armas. |
+| `POST /api/paises`, `PUT /api/paises/:id`, `DELETE /api/paises/:id` | Requiere `Bearer <token>` | Creación, edición y eliminación de países o facciones. |
+| `POST /api/conflictos`, `PUT /api/conflictos/:id`, `DELETE /api/conflictos/:id` | Requiere `Bearer <token>` | Creación, edición y eliminación de conflictos. |
+
+Ejemplo de inicio de sesión en PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email":"admin@ejemplo.cl","password":"clave-ficticia-de-prueba"}'
+```
+
+Ejemplo de respuesta (`{ success, data: { token, email, expiresAt } }`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOi...",
+    "email": "admin@ejemplo.cl",
+    "expiresAt": 1763331600000
+  }
+}
+```
+
+**Contenido del token y roles:**
+- El payload del JWT contiene `sub` (id del usuario), `email`, `rol` y `exp` (además de `iat`), firmado con `HS256` y una duración de 30 minutos. Nunca lleva la contraseña ni el hash (`password_hash`), y `expiresAt` se entrega en milisegundos.
+- Solo los roles `'Administrador General'` y `'Administrador'` pueden modificar el catálogo. Cualquier otro rol recibe `403`.
+
+| Código | Caso | Mensaje exacto del código |
+| --- | --- | --- |
+| `400` | Datos inválidos en el login (correo o contraseña ausentes, no texto o fuera de largo) | `Ingresa un correo y una contraseña válidos.` |
+| `400` | Datos inválidos en recuperación de contraseña | `Ingresa un correo electrónico válido.` |
+| `401` | Credenciales inválidas o cuenta inactiva en el login | `Credenciales inválidas. Acceso denegado.` |
+| `401` | Sesión vencida, token inválido o cuenta desactivada en rutas protegidas | `La sesión venció. Inicia sesión nuevamente.` |
+| `403` | Rol sin permiso para modificar el catálogo | `No tienes permiso para esta acción.` |
+| `429` | Demasiados intentos de login (incluye el encabezado `Retry-After`) | `Demasiados intentos de ingreso. Inténtalo de nuevo en 15 minutos.` |
+| `503` | PostgreSQL no disponible en el login o en rutas protegidas | `Servicio de autenticación no disponible temporalmente.` |
+
+**Configuración de `JWT_SECRET`:**
+- En producción (`NODE_ENV=production` o Vercel) es obligatoria y debe tener 32 caracteres o más; si falta o tiene menos de 32 caracteres, el login falla.
+- En local es opcional: sin ella se usa una clave temporal en memoria, se muestra una advertencia en consola y los tokens dejan de servir al reiniciar el backend.
+
+**Limitaciones:**
+- El logout no invalida el token en el servidor: sigue siendo válido hasta que vence (30 minutos) y el frontend lo descarta de la memoria al cerrar sesión.
+- El límite de 5 intentos por IP cada 15 minutos cuenta todos los intentos, vive en memoria, se reinicia al reiniciar el backend (se desactiva con `NODE_ENV=test`) y en Vercel no se comparte entre instancias.
+- La recuperación de contraseña sigue siendo una simulación: valida el formato del correo y muestra una confirmación, pero no guarda una solicitud, no genera tokens de recuperación, no envía correos y no cambia contraseñas.
 
 ## Instalar y ejecutar desde otra copia
 
@@ -52,6 +105,12 @@ Desde la raíz del repositorio, instalar las versiones de los archivos de bloque
 ```powershell
 npm.cmd ci
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+Definir `JWT_SECRET` en `.env` (mínimo 32 caracteres; opcional en local y obligatoria en producción, ver [Inicio de sesión con JWT](#inicio-de-sesión-con-jwt)) generando una clave con el comando de `.env.example`:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
 Para crear MongoDB con la configuración incluida:

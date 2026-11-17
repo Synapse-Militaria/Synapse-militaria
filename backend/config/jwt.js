@@ -2,7 +2,7 @@ const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
 
 const ALGORITMO = 'HS256';
-const DURACION_TOKEN_SEGUNDOS = 30 * 60; // igual que DURACION_SESION en armaController
+const DURACION_TOKEN_SEGUNDOS = 30 * 60; // coincide con la duración máxima de la sesión del frontend
 const LARGO_MINIMO_CLAVE = 32;
 
 // Misma condición que entornoPruebas() en backend/controllers/armaController.js.
