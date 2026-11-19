@@ -101,7 +101,7 @@ for (const [caso, email, password, mensaje] of [
   ['una clave corta', 'jefe@synapse-militaria.cl', 'Corta-2026', /entre 12 y 128 caracteres/],
   ['una clave demasiado larga', 'jefe@synapse-militaria.cl', 'x'.repeat(129), /entre 12 y 128 caracteres/],
   ['una clave que contiene el correo', 'jefe.archivo@synapse-militaria.cl', 'Jefe.Archivo-2026!', /parte del correo antes de la @/],
-  ['un correo sin formato válido', 'jefe-sin-arroba', CLAVE_VALIDA, /formato de correo válido/],
+  ['un correo sin formato válido', 'jefe-sin-arroba', CLAVE_VALIDA, /no tiene un formato válido/],
 ]) {
   test(`rechaza ${caso} sin consultar Neon`, async () => {
     definirCuenta(email, password);

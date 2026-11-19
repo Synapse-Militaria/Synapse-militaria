@@ -3,26 +3,14 @@ const conectarDB = require('./config/database');
 const neon = require('./neon');
 const { Arma, Conflicto, Pais } = require('./models/armaModel');
 const { crearHash, completarArma, copiarEvento } = require('./controllers/armaController');
+const { validarCuenta, normalizarEmail } = require('./utils/validarCuenta');
 
 const ROL_ADMIN_INICIAL = 'Administrador General';
-const LARGO_MINIMO_CLAVE = 12;
-const LARGO_MAXIMO_CLAVE = 128;
 
 // Muestra solo la primera letra del correo y su dominio (por ejemplo, a***@dominio.cl).
 function ocultarEmail(email) {
   const [usuario, dominio] = email.split('@');
   return `${usuario.slice(0, 1)}***@${dominio}`;
-}
-
-function problemasDeCuenta(email, password) {
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'ADMIN_EMAIL no tiene un formato de correo válido.';
-  if (password.toLowerCase() === 'admin123') return 'ADMIN_PASSWORD no puede ser admin123.';
-  if (password.length < LARGO_MINIMO_CLAVE || password.length > LARGO_MAXIMO_CLAVE) {
-    return `ADMIN_PASSWORD debe tener entre ${LARGO_MINIMO_CLAVE} y ${LARGO_MAXIMO_CLAVE} caracteres.`;
-  }
-  const usuario = email.split('@')[0];
-  if (password.toLowerCase().includes(usuario)) return 'ADMIN_PASSWORD no puede contener la parte del correo antes de la @.';
-  return null;
 }
 
 // Crea la cuenta de Administrador General en PostgreSQL (Neon). Todos usan la misma
@@ -34,8 +22,8 @@ async function crearAdministradorInicial() {
     console.warn('No se creó la cuenta de administrador: define ADMIN_EMAIL y ADMIN_PASSWORD (12 caracteres o más) en el .env o en las variables de entorno y vuelve a ejecutar el seed.');
     return { estado: 'omitida', motivo: 'faltan-variables' };
   }
-  const email = emailEnv.trim().toLowerCase();
-  const problema = problemasDeCuenta(email, password);
+  const email = normalizarEmail(emailEnv);
+  const problema = validarCuenta({ email, password });
   if (problema) {
     console.warn(`No se creó la cuenta de administrador: ${problema}`);
     return { estado: 'omitida', motivo: 'datos-invalidos' };
