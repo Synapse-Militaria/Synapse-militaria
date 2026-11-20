@@ -17,7 +17,9 @@ En Consultas, el botón **Descargar CSV** exporta el reporte de armas por país 
 
 La búsqueda ignora mayúsculas y tildes. Cuando no hay coincidencias, muestra un estado vacío con un botón para restablecer todos los filtros.
 
-La navegación utiliza las rutas `/`, `/enciclopedia`, `/consultas`, `/arma/:id`, `/admin/login` y `/admin`, sin recargar la página. Se pueden usar los botones Atrás y Adelante del navegador.
+La navegación utiliza las rutas `/`, `/enciclopedia`, `/consultas`, `/arma/:id`, `/ingresar` (o `/admin/login`) y `/admin`, sin recargar la página. Se pueden usar los botones Atrás y Adelante del navegador.
+
+El menú principal adapta sus opciones según el rol de la sesión: sin sesión muestra **Iniciar sesión**; con sesión muestra el nombre y rol (`nombre · rol`) junto a **Cerrar sesión**, y habilita **Panel Admin** únicamente para cuentas con rol `Administrador` o `Administrador General`.
 
 La pestaña Referencias edita las fuentes embebidas en las armas o los conflictos. La marca de fuente revisada se selecciona manualmente; no existe una verificación automática de su contenido.
 
@@ -61,7 +63,7 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/auth/login" `
   -Body '{"email":"admin@ejemplo.cl","password":"clave-ficticia-de-prueba"}'
 ```
 
-Ejemplo de respuesta (`{ success, data: { token, email, expiresAt } }`):
+Ejemplo de respuesta (`{ success, data: { token, email, nombre, rol, expiresAt } }`):
 
 ```json
 {
@@ -69,6 +71,8 @@ Ejemplo de respuesta (`{ success, data: { token, email, expiresAt } }`):
   "data": {
     "token": "eyJhbGciOi...",
     "email": "admin@ejemplo.cl",
+    "nombre": "Administrador",
+    "rol": "Administrador General",
     "expiresAt": 1763331600000
   }
 }

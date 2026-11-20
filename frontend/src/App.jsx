@@ -12,6 +12,7 @@ import { loadCatalog, request, toDocument } from './services/api'
 const initialCatalog = { weapons, countries, conflicts }
 const normalizers = { weapons: normalizeWeapon, countries: normalizeCountry, conflicts: normalizeConflict }
 const endpoints = { weapons: 'armas', countries: 'paises', conflicts: 'conflictos' }
+const ROLES_ADMIN = ['Administrador General', 'Administrador']
 
 function readPage() {
   const { pathname, search } = window.location
@@ -23,7 +24,7 @@ function readPage() {
     try { return { view: 'weapon', id: decodeURIComponent(pathname.slice(6)) } }
     catch { return { view: 'not-found' } }
   }
-  if (pathname === '/admin/login') return { view: 'admin-login' }
+  if (pathname === '/ingresar' || pathname === '/admin/login') return { view: 'login' }
   if (pathname === '/admin') return { view: 'admin' }
   return { view: 'not-found' }
 }
@@ -31,7 +32,7 @@ function readPage() {
 function pageUrl(page) {
   if (page.view === 'home') return '/'
   if (page.view === 'weapon') return `/arma/${encodeURIComponent(page.id)}`
-  if (page.view === 'admin-login') return '/admin/login'
+  if (page.view === 'login') return '/ingresar'
   if (page.view === 'admin') return '/admin'
   if (page.view === 'queries') return '/consultas'
   const params = new URLSearchParams()
@@ -152,7 +153,7 @@ export default function App() {
       timer = setTimeout(() => {
         setSession(null)
         setSessionMessage('La sesión terminó por inactividad. Vuelve a ingresar.')
-        navigate({ view: 'admin-login' })
+        navigate({ view: 'login' })
       }, Math.min(15 * 60 * 1000, session.expiresAt - Date.now()))
     }
     resetTimer()
@@ -166,14 +167,14 @@ export default function App() {
     if (mode === 'loading') throw new Error('Espera un momento mientras se comprueba la conexión.')
     if (mode !== 'online') throw new Error('No hay conexión con el servidor. Usa el modo demostración o reintenta la conexión.')
     const data = await request('/auth/login', { method: 'POST', body: { email, password } })
-    setSession({ ...data, expiresAt: Number(new Date(data.expiresAt)) })
-    navigate({ view: 'admin' })
+    setSession({ ...data, nombre: data.nombre, rol: data.rol, expiresAt: Number(new Date(data.expiresAt)) })
+    navigate({ view: ROLES_ADMIN.includes(data.rol) ? 'admin' : 'home' })
   }
 
   function handleDemoLogin() {
     if (mode !== 'demo') return
     setSessionMessage('')
-    setSession({ email: 'Modo demostración', token: null, expiresAt: Date.now() + 30 * 60 * 1000 })
+    setSession({ nombre: 'Modo demostración', rol: 'Administrador', token: null, expiresAt: Date.now() + 30 * 60 * 1000 })
     navigate({ view: 'admin' })
   }
 
@@ -222,10 +223,11 @@ export default function App() {
     })
   }
 
+  const isAdmin = Boolean(session && ROLES_ADMIN.includes(session.rol))
   const publicCatalog = { ...catalog, weapons: catalog.weapons.filter(w => w.activo_en_catalogo !== false) }
   return <div className="min-h-screen bg-background text-foreground">
     <a className="skip-link font-mono text-sm" href="#contenido">Saltar al contenido</a>
-    <Nav page={page} navigate={navigate} isAdmin={Boolean(session)} onLogout={handleLogout} />
+    <Nav page={page} navigate={navigate} session={session} isAdmin={isAdmin} onLogout={handleLogout} />
     {mode !== 'online' && <aside role="status" aria-live="polite" className="no-print fixed bottom-4 left-4 sm:left-auto right-4 z-40 sm:max-w-md border border-primary/30 bg-card px-4 py-3 shadow-lg">
       <p className="font-mono text-xs text-secondary-foreground">{mode === 'loading' ? 'Comprobando conexión con la API…' : 'Modo de presentación: los cambios quedan en este navegador hasta recargar.'}</p>
       <button type="button" disabled={mode === 'loading'} onClick={retryConnection} className="mt-2 text-primary font-mono text-xs underline disabled:opacity-50">{mode === 'loading' ? 'Comprobando conexión…' : 'Reintentar conexión con la API'}</button>
@@ -235,9 +237,10 @@ export default function App() {
       {page.view === 'home' && <Home navigate={navigate} {...publicCatalog} />}
       {page.view === 'encyclopedia' && <Encyclopedia key={pageUrl(page)} navigate={navigate} initialSearch={page.search} initialCategory={page.category} initialConflict={page.conflict} {...publicCatalog} />}
       {page.view === 'queries' && <QueryReports mode={mode} navigate={navigate} {...publicCatalog} />}
-      {page.view === 'weapon' && <WeaponDetail key={page.id} id={page.id} navigate={navigate} mode={mode} {...(session ? catalog : publicCatalog)} />}
-      {(page.view === 'admin-login' || (page.view === 'admin' && !session)) && <AdminLogin navigate={navigate} onLogin={handleLogin} onDemoLogin={handleDemoLogin} mode={mode} message={sessionMessage} />}
-      {page.view === 'admin' && session && <AdminDashboard navigate={navigate} onLogout={handleLogout} {...catalog} onSave={saveRecord} onDelete={deleteRecord} mode={mode} />}
+      {page.view === 'weapon' && <WeaponDetail key={page.id} id={page.id} navigate={navigate} mode={mode} {...(isAdmin ? catalog : publicCatalog)} />}
+      {(page.view === 'login' || (page.view === 'admin' && !session)) && <AdminLogin navigate={navigate} onLogin={handleLogin} onDemoLogin={handleDemoLogin} mode={mode} message={sessionMessage} />}
+      {page.view === 'admin' && session && !isAdmin && <main className="pt-32 px-6 text-center"><h1 className="font-heading text-3xl uppercase mb-6">Tu cuenta no tiene permisos de administración</h1><button className="text-primary underline" onClick={() => navigate({ view: 'home' })}>Volver al inicio</button></main>}
+      {page.view === 'admin' && isAdmin && <AdminDashboard navigate={navigate} onLogout={handleLogout} {...catalog} onSave={saveRecord} onDelete={deleteRecord} mode={mode} />}
       {page.view === 'not-found' && <main className="pt-32 px-6 text-center"><h1 className="font-heading text-3xl uppercase mb-6">Página no encontrada</h1><button className="text-primary underline" onClick={() => navigate({ view: 'home' })}>Volver al inicio</button></main>}
     </div>
   </div>

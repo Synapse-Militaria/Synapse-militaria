@@ -22,10 +22,9 @@ export default function AdminLogin({ navigate, onLogin, onDemoLogin, mode, messa
 
   return <main className="min-h-screen bg-background bg-grid flex items-center justify-center px-4 pt-24 pb-12">
     <div className="w-full max-w-sm">
-      <div className="border border-accent bg-accent/15 text-accent-foreground font-mono text-xs text-center py-3 mb-6 tracking-widest uppercase">Acceso restringido — Solo personal autorizado</div>
       <div className="text-center mb-8">
         <button onClick={() => navigate({ view: 'home' })} className="font-heading text-2xl font-bold uppercase tracking-widest text-primary mb-1">SYNAPSE-MILITARIA</button>
-        <h1 className="font-mono text-xs text-muted-foreground tracking-widest uppercase">Panel de administración</h1>
+        <h1 className="font-mono text-xs text-muted-foreground tracking-widest uppercase">Iniciar sesión</h1>
       </div>
       {message && <p role="status" className="border border-primary/40 text-primary p-3 mb-4 text-sm">{message}</p>}
       {mode === 'demo' ? <div className="bg-card border border-border p-6 space-y-4">

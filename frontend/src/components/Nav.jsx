@@ -2,10 +2,13 @@ import { useEffect, useId, useRef, useState } from 'react';
 export default function Nav({
   page,
   navigate,
+  session,
   isAdmin,
   onLogout
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const hasSession = Boolean(session || isAdmin);
+  const accountLabel = session ? [session.nombre, session.rol].filter(Boolean).join(' · ') : '';
   return <nav aria-label="Navegación principal" className="no-print fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
         <button onClick={() => navigate({
@@ -13,26 +16,27 @@ export default function Nav({
       })} className="font-heading whitespace-nowrap shrink-0 text-sm sm:text-lg lg:text-xl font-semibold tracking-wide lg:tracking-widest text-primary uppercase">
           SYNAPSE<span className="text-muted-foreground mx-0.5">—</span>MILITARIA
         </button>
-        <div className="hidden md:flex items-center gap-5">
+        <div className="hidden md:flex items-center gap-5 min-w-0">
           <button onClick={() => navigate({
           view: 'encyclopedia'
         })} className={`font-mono text-xs tracking-wider uppercase transition-colors ${page.view === 'encyclopedia' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
             Enciclopedia
           </button>
           <button onClick={() => navigate({ view: 'queries' })} className={`font-mono text-xs tracking-wider uppercase transition-colors ${page.view === 'queries' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Consultas</button>
-          {isAdmin ? <>
-              <button onClick={() => navigate({
+          {hasSession ? <>
+              {accountLabel && <span className="max-w-48 truncate font-mono text-xs text-secondary-foreground">{accountLabel}</span>}
+              {isAdmin && <button onClick={() => navigate({
             view: 'admin'
           })} className={`font-mono text-xs tracking-wider uppercase transition-colors ${page.view === 'admin' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                 Panel Admin
-              </button>
+              </button>}
               <button onClick={onLogout} className="font-mono text-xs text-accent-foreground hover:text-red-400 transition-colors uppercase tracking-wider">
                 Cerrar sesión
               </button>
             </> : <button onClick={() => navigate({
-          view: 'admin-login'
+          view: 'login'
         })} className="border border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground font-mono text-xs px-3 py-1.5 transition-colors uppercase tracking-wider">
-              Admin
+              Iniciar sesión
             </button>}
         </div>
         <button className="md:hidden shrink-0 text-muted-foreground p-2" onClick={() => setMobileOpen(v => !v)} aria-label="Menú" aria-expanded={mobileOpen} aria-controls="menu-movil">
@@ -51,15 +55,16 @@ export default function Nav({
             Enciclopedia
           </button>
           <button onClick={() => { navigate({ view: 'queries' }); setMobileOpen(false); }} className="font-mono text-xs tracking-wider text-left text-foreground uppercase">Consultas</button>
-          {isAdmin ? <>
-              <button onClick={() => {
+          {hasSession ? <>
+              {accountLabel && <span className="max-w-full truncate font-mono text-xs text-secondary-foreground">{accountLabel}</span>}
+              {isAdmin && <button onClick={() => {
           navigate({
             view: 'admin'
           });
           setMobileOpen(false);
         }} className="font-mono text-xs tracking-wider text-left text-foreground uppercase">
                 Panel Admin
-              </button>
+              </button>}
               <button onClick={() => {
           onLogout();
           setMobileOpen(false);
@@ -68,11 +73,11 @@ export default function Nav({
               </button>
             </> : <button onClick={() => {
         navigate({
-          view: 'admin-login'
+          view: 'login'
         });
         setMobileOpen(false);
       }} className="font-mono text-xs text-primary text-left uppercase">
-              Acceso Admin
+              Iniciar sesión
             </button>}
         </div>}
     </nav>;
