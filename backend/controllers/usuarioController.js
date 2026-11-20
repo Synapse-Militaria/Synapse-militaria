@@ -195,4 +195,4 @@ async function eliminar(req, res) {
   res.json({ success: true, data: { id: fila.id } });
 }
 
-module.exports = { listar, crear, actualizar, eliminar };
+module.exports = { listar, crear, actualizar, eliminar, consultar };

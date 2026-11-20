@@ -6,6 +6,7 @@ const { armas, reportes, catalogoController, auth, errorHTTP, responderError } =
 const { crearLimitadorLogin } = require('./middleware/loginLimiter');
 const { requerirRol } = require('./middleware/requerirRol');
 const usuarios = require('./controllers/usuarioController');
+const registro = require('./controllers/registroController');
 
 const app = express();
 const origenes = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173')
@@ -62,6 +63,8 @@ app.get('/api/estado', async (req, res) => {
 });
 
 app.post('/api/auth/login', crearLimitadorLogin(), auth.login);
+// Instancia propia del limitador: los intentos de registro no cuentan para el login ni al revés.
+app.post('/api/auth/registro', crearLimitadorLogin(), registro.registrar);
 app.post('/api/auth/logout', auth.autenticar, auth.logout);
 app.post('/api/auth/recuperar', auth.recuperar);
 app.get('/api/reportes/armas-por-pais', reportes.armasPorPais);

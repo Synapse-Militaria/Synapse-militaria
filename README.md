@@ -41,16 +41,17 @@ Las tipografías y las fotografías originales se sirven localmente desde `front
 
 ### Inicio de sesión con JWT
 
-El inicio de sesión (`POST /api/auth/login`) busca la cuenta activa (`cuenta_activa = true`) en la tabla `usuarios` de PostgreSQL (Neon) mediante un `JOIN` con `roles`, compara la clave con `scrypt` (`timingSafeEqual`), actualiza `ultimo_acceso` y entrega un JWT. El frontend lo guarda solo en memoria y lo envía en cada solicitud protegida como `Authorization: Bearer <token>`. En cada ruta protegida, la API verifica la firma y vigencia del token y vuelve a consultar en PostgreSQL que la cuenta siga activa y con rol de administrador. Las colecciones `Administradores` y `Sesiones` de MongoDB ya no las usa el login; solo se leen en `npm.cmd run migrar:admin` para bases antiguas.
+El inicio de sesión (`POST /api/auth/login`) busca la cuenta activa (`cuenta_activa = true`) en la tabla `usuarios` de PostgreSQL (Neon) mediante un `JOIN` con `roles`, compara la clave con `scrypt` (`timingSafeEqual`), actualiza `ultimo_acceso` y entrega un JWT. El frontend lo guarda solo en memoria y lo envía en cada solicitud protegida como `Authorization: Bearer <token>`. En cada ruta protegida, la API verifica la firma y vigencia del token y vuelve a consultar en PostgreSQL que la cuenta siga activa; `auth.autenticar` no revisa el rol. En las rutas que exigen un rol, `requerirRol` lo comprueba a continuación y responde 403 si la cuenta no lo tiene. Las colecciones `Administradores` y `Sesiones` de MongoDB ya no las usa el login; solo se leen en `npm.cmd run migrar:admin` para bases antiguas.
 
-| Ruta | Autenticación | Descripción |
-| --- | --- | --- |
-| `POST /api/auth/login` | Sin token (con límite de intentos) | Valida credenciales en PostgreSQL, actualiza `ultimo_acceso` y emite el JWT. |
-| `POST /api/auth/logout` | Requiere `Bearer <token>` | Confirma el cierre de sesión para que el frontend descarte el token en memoria. |
-| `POST /api/auth/recuperar` | Sin token (simulación) | Simulación académica de recuperación de contraseña. |
-| `POST /api/armas`, `PUT /api/armas/:id`, `DELETE /api/armas/:id` | Requiere `Bearer <token>` | Creación, edición y eliminación de armas. |
-| `POST /api/paises`, `PUT /api/paises/:id`, `DELETE /api/paises/:id` | Requiere `Bearer <token>` | Creación, edición y eliminación de países o facciones. |
-| `POST /api/conflictos`, `PUT /api/conflictos/:id`, `DELETE /api/conflictos/:id` | Requiere `Bearer <token>` | Creación, edición y eliminación de conflictos. |
+| Ruta | Autenticación | Rol requerido | Descripción |
+| --- | --- | --- | --- |
+| `POST /api/auth/login` | Sin token (con límite de intentos) | Ninguno | Valida credenciales en PostgreSQL, actualiza `ultimo_acceso` y emite el JWT. |
+| `POST /api/auth/registro` | Sin token (con límite de intentos propio) | Ninguno | Crea una cuenta activa con el rol Usuario, guarda la clave con `scrypt` y emite el JWT. |
+| `POST /api/auth/logout` | Requiere `Bearer <token>` | Cualquiera (cuenta activa) | Confirma el cierre de sesión para que el frontend descarte el token en memoria. |
+| `POST /api/auth/recuperar` | Sin token (simulación) | Ninguno | Simulación académica de recuperación de contraseña. |
+| `POST /api/armas`, `PUT /api/armas/:id`, `DELETE /api/armas/:id` | Requiere `Bearer <token>` | Administrador General o Administrador | Creación, edición y eliminación de armas. |
+| `POST /api/paises`, `PUT /api/paises/:id`, `DELETE /api/paises/:id` | Requiere `Bearer <token>` | Administrador General o Administrador | Creación, edición y eliminación de países o facciones. |
+| `POST /api/conflictos`, `PUT /api/conflictos/:id`, `DELETE /api/conflictos/:id` | Requiere `Bearer <token>` | Administrador General o Administrador | Creación, edición y eliminación de conflictos. |
 
 Ejemplo de inicio de sesión en PowerShell:
 
@@ -95,6 +96,20 @@ Ejemplo de respuesta (`{ success, data: { token, email, expiresAt } }`):
 - El logout no invalida el token en el servidor: sigue siendo válido hasta que vence (30 minutos) y el frontend lo descarta de la memoria al cerrar sesión.
 - El límite de 5 intentos por IP cada 15 minutos cuenta todos los intentos, vive en memoria, se reinicia al reiniciar el backend (se desactiva con `NODE_ENV=test`) y en Vercel no se comparte entre instancias.
 - La recuperación de contraseña sigue siendo una simulación: valida el formato del correo y muestra una confirmación, pero no guarda una solicitud, no genera tokens de recuperación, no envía correos y no cambia contraseñas.
+
+## Cuentas y roles
+
+Las cuentas están en las tablas `usuarios` y `roles` de PostgreSQL (Neon). Cualquier cuenta activa puede iniciar sesión; los permisos dependen de su rol:
+
+| Rol | Qué puede hacer |
+| --- | --- |
+| Usuario | Iniciar y cerrar sesión. Consulta el catálogo como cualquier visitante; recibe 403 al intentar modificar el catálogo o gestionar cuentas. |
+| Administrador | Lo mismo que un Usuario, más crear, editar y eliminar armas, conflictos y países/facciones. |
+| Administrador General | Lo mismo que un Administrador, más gestionar cuentas en `/api/usuarios`: listarlas, crear administradores, activarlas o desactivarlas, cambiar su rol y eliminarlas. No puede modificar su propia cuenta y siempre debe quedar al menos un Administrador General activo. |
+
+El registro público (`POST /api/auth/registro`, con `nombre`, `email` y `password`) siempre crea una cuenta activa con el rol **Usuario** e inicia la sesión con la misma respuesta que el login. Ignora cualquier `rol`, `rol_id` o `cuenta_activa` enviado en el body, aplica las mismas reglas de contraseña que el seed y tiene su propio límite de 5 intentos por IP cada 15 minutos, separado del login.
+
+Solo el Administrador General puede ascender una cuenta a Administrador, con `PATCH /api/usuarios/:id` y el body `{"rol":"Administrador"}`. Con `{"rol":"Usuario"}` se le quita ese rol.
 
 ## Instalar y ejecutar desde otra copia
 
