@@ -158,8 +158,8 @@ async function actualizar(req, res) {
   if (rol !== undefined && !ROLES_ACTUALIZABLES.includes(rol)) {
     throw errorHTTP(400, 'El rol debe ser Administrador General, Administrador o Usuario.');
   }
-  // Se normaliza req.admin.id con Number() por si el driver devuelve BIGINT como string.
-  if (id === Number(req.admin?.id)) {
+  // Se normaliza req.usuario.id con Number() por si el driver devuelve BIGINT como string.
+  if (id === Number(req.usuario?.id)) {
     throw errorHTTP(400, ERROR_PROPIA_CUENTA);
   }
 
@@ -181,7 +181,7 @@ async function actualizar(req, res) {
 
 async function eliminar(req, res) {
   const id = leerIdUsuario(req.params.id);
-  if (id === Number(req.admin?.id)) {
+  if (id === Number(req.usuario?.id)) {
     throw errorHTTP(400, ERROR_PROPIA_CUENTA);
   }
 

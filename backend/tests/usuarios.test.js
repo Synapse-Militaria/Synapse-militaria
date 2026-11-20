@@ -55,7 +55,7 @@ WHERE u.id = $1
 RETURNING u.id`;
 
 // Simula las tablas roles, usuarios y favoritos de database/schema.sql, incluidas UNIQUE(email), ON DELETE CASCADE y pool.connect().
-function simularNeon({ caidaDespuesDeAutenticar = false, falloEnModificar = false, idAdminComoString = false, extras = [], despuesDeAutenticar = null } = {}) {
+function simularNeon({ caidaDespuesDeAutenticar = false, falloEnModificar = false, idUsuarioComoString = false, extras = [], despuesDeAutenticar = null } = {}) {
   const roles = [{ id: 1, nombre: 'Administrador General' }, { id: 2, nombre: 'Administrador' }, { id: 3, nombre: 'Usuario' }];
   const usuarios = [
     { id: 1, nombre: 'Jefa de archivo', email: 'general@synapse-militaria.cl', password_hash: HASH_EXISTENTE, rol_id: 1, cuenta_activa: true, ultimo_acceso: null, creado_en: new Date('2026-11-01T10:00:00Z') },
@@ -69,10 +69,10 @@ function simularNeon({ caidaDespuesDeAutenticar = false, falloEnModificar = fals
   const releases = [];
 
   async function ejecutarConsulta(sql, params = []) {
-    if (sql.startsWith('SELECT u.id, u.email, r.nombre AS rol FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.id = $1')) {
+    if (sql.startsWith('SELECT u.id, u.nombre, u.email, r.nombre AS rol FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.id = $1')) {
       const rows = usuarios
         .filter(u => u.id === params[0] && u.cuenta_activa)
-        .map(u => ({ id: idAdminComoString ? String(u.id) : u.id, email: u.email, rol: rolDe(u) }));
+        .map(u => ({ id: idUsuarioComoString ? String(u.id) : u.id, nombre: u.nombre, email: u.email, rol: rolDe(u) }));
       if (despuesDeAutenticar) despuesDeAutenticar(usuarios);
       return { rows };
     }
@@ -351,7 +351,7 @@ test('PATCH /api/usuarios/:id asciende una cuenta Usuario a Administrador, baja 
   assert.equal(usuarios[1].rol_id, 3);
   sinDatosSensibles(bajada.texto);
 
-  // Aunque su JWT se emitió cuando era Administrador, autenticar lee el rol actual desde la base y responde 403.
+  // Aunque su JWT se emitió cuando era Administrador, autenticar lee el rol actual desde la base y requerirRol responde 403.
   const intentoCatalogo = await pedir('POST', { ruta: '/api/armas', token: tokenEditor, body: {} });
   assert.equal(intentoCatalogo.status, 403);
   assert.equal(intentoCatalogo.json.message, 'No tienes permiso para esta acción.');
@@ -401,8 +401,8 @@ test('PATCH y DELETE /api/usuarios/:id responden 404 si la cuenta no existe', as
 });
 
 test('PATCH y DELETE /api/usuarios/:id responden 400 al intentar modificar o eliminar la propia cuenta, incluso si Postgres devuelve el id como string', async () => {
-  for (const idAdminComoString of [false, true]) {
-    const { usuarios } = simularNeon({ idAdminComoString });
+  for (const idUsuarioComoString of [false, true]) {
+    const { usuarios } = simularNeon({ idUsuarioComoString });
     const desactivarPropia = await pedir('PATCH', { ruta: '/api/usuarios/1', token: GENERAL(), body: { cuenta_activa: false } });
     const cambiarRolPropia = await pedir('PATCH', { ruta: '/api/usuarios/1', token: GENERAL(), body: { rol: 'Administrador' } });
     const eliminarPropia = await pedir('DELETE', { ruta: '/api/usuarios/1', token: GENERAL() });

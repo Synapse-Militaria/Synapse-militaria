@@ -57,22 +57,22 @@ function ejecutar(middleware, req) {
 }
 
 test('requerirRol deja pasar a un rol permitido', () => {
-  assert.equal(ejecutar(requerirRol('Administrador General'), { admin: { rol: 'Administrador General' } }), undefined);
+  assert.equal(ejecutar(requerirRol('Administrador General'), { usuario: { rol: 'Administrador General' } }), undefined);
 });
 
 test('requerirRol responde 403 a un rol no permitido', () => {
-  const error = ejecutar(requerirRol('Administrador General'), { admin: { rol: 'Administrador' } });
+  const error = ejecutar(requerirRol('Administrador General'), { usuario: { rol: 'Administrador' } });
   assert.equal(error.status, 403);
   assert.equal(error.message, 'No tienes permiso para esta acción.');
 });
 
-test('requerirRol responde 403 si no hay req.admin', () => {
+test('requerirRol responde 403 si no hay req.usuario', () => {
   assert.equal(ejecutar(requerirRol('Administrador General'), {}).status, 403);
 });
 
 test('requerirRol acepta varios roles a la vez', () => {
   const middleware = requerirRol('Administrador General', 'Administrador');
-  assert.equal(ejecutar(middleware, { admin: { rol: 'Administrador General' } }), undefined);
-  assert.equal(ejecutar(middleware, { admin: { rol: 'Administrador' } }), undefined);
-  assert.equal(ejecutar(middleware, { admin: { rol: 'Editor' } }).status, 403);
+  assert.equal(ejecutar(middleware, { usuario: { rol: 'Administrador General' } }), undefined);
+  assert.equal(ejecutar(middleware, { usuario: { rol: 'Administrador' } }), undefined);
+  assert.equal(ejecutar(middleware, { usuario: { rol: 'Editor' } }).status, 403);
 });

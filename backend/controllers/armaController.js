@@ -111,7 +111,6 @@ async function sincronizarConflicto(conflicto, session = null) {
 
 const scryptAsync = promisify(scrypt);
 const HASH_FICTICIO = `scrypt:${'00'.repeat(16)}:${'00'.repeat(64)}`;
-const ROLES_ADMIN = new Set(['Administrador General', 'Administrador']);
 
 async function consultarPostgres(sql, params) {
   try {
@@ -153,7 +152,7 @@ async function autenticar(req, res, next) {
   let resultado;
   try {
     resultado = await consultarPostgres(
-      'SELECT u.id, u.email, r.nombre AS rol FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.id = $1 AND u.cuenta_activa = true',
+      'SELECT u.id, u.nombre, u.email, r.nombre AS rol FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.id = $1 AND u.cuenta_activa = true',
       [id]
     );
   } catch (error) {
@@ -161,8 +160,7 @@ async function autenticar(req, res, next) {
   }
   const usuario = resultado.rows?.[0];
   if (!usuario) return next(errorHTTP(401, 'La sesión venció. Inicia sesión nuevamente.'));
-  if (!ROLES_ADMIN.has(usuario.rol)) return next(errorHTTP(403, 'No tienes permiso para esta acción.'));
-  req.admin = { id: usuario.id, email: usuario.email, rol: usuario.rol };
+  req.usuario = { id: usuario.id, email: usuario.email, nombre: usuario.nombre, rol: usuario.rol };
   req.token = token;
   next();
 }
@@ -174,7 +172,7 @@ async function login(req, res) {
   }
   const emailNormalizado = email.trim().toLowerCase();
   const resultado = await consultarPostgres(
-    'SELECT u.id, u.email, u.password_hash, r.nombre AS rol FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.email = $1 AND u.cuenta_activa = true',
+    'SELECT u.id, u.nombre, u.email, u.password_hash, r.nombre AS rol FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.email = $1 AND u.cuenta_activa = true',
     [emailNormalizado]
   );
   const cuenta = resultado.rows?.[0];
@@ -182,7 +180,7 @@ async function login(req, res) {
   if (!cuenta || !valida) throw errorHTTP(401, 'Credenciales inválidas. Acceso denegado.');
   await consultarPostgres('UPDATE usuarios SET ultimo_acceso = now() WHERE id = $1', [cuenta.id]);
   const { token, expiresAt } = firmarToken({ id: cuenta.id, email: cuenta.email, rol: cuenta.rol });
-  res.json({ success: true, data: { token, email: cuenta.email, expiresAt } });
+  res.json({ success: true, data: { token, email: cuenta.email, nombre: cuenta.nombre, rol: cuenta.rol, expiresAt } });
 }
 
 async function logout(req, res) {

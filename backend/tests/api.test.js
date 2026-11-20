@@ -232,11 +232,11 @@ test('no se puede crear una ficha sin sesión', async () => {
 
 test('login valida el hash y una sesión permite guardar y eliminar una ficha', async () => {
   const password_hash = await crearHash('clave-de-prueba');
-  const admin = { id: 7, email: 'admin@example.cl', password_hash, rol: 'Administrador General', cuenta_activa: true };
+  const admin = { id: 7, nombre: 'Admin General', email: 'admin@example.cl', password_hash, rol: 'Administrador General', cuenta_activa: true };
   let ultimoAccesoActualizado = 0;
   mock.method(neon, 'query', async (sql, params) => {
     if (sql.includes('WHERE u.email = $1')) {
-      return { rows: params[0] === admin.email && admin.cuenta_activa ? [{ id: admin.id, email: admin.email, password_hash: admin.password_hash, rol: admin.rol }] : [] };
+      return { rows: params[0] === admin.email && admin.cuenta_activa ? [{ id: admin.id, nombre: admin.nombre, email: admin.email, password_hash: admin.password_hash, rol: admin.rol }] : [] };
     }
     if (sql.includes('UPDATE usuarios SET ultimo_acceso')) {
       assert.deepEqual(params, [admin.id]);
@@ -244,7 +244,7 @@ test('login valida el hash y una sesión permite guardar y eliminar una ficha', 
       return { rowCount: 1 };
     }
     if (sql.includes('WHERE u.id = $1')) {
-      return { rows: params[0] === admin.id && admin.cuenta_activa ? [{ id: admin.id, email: admin.email, rol: admin.rol }] : [] };
+      return { rows: params[0] === admin.id && admin.cuenta_activa ? [{ id: admin.id, nombre: admin.nombre, email: admin.email, rol: admin.rol }] : [] };
     }
     throw new Error(`Consulta no esperada: ${sql}`);
   });
@@ -259,6 +259,8 @@ test('login valida el hash y una sesión permite guardar y eliminar una ficha', 
   assert.equal(ultimoAccesoActualizado, 1);
   assert.ok(sesion.token);
   assert.equal(sesion.email, admin.email);
+  assert.equal(sesion.nombre, admin.nombre);
+  assert.equal(sesion.rol, admin.rol);
   assert.ok(Number.isFinite(sesion.expiresAt));
   assert.equal(sesion.password_hash, undefined);
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion.token}` };
@@ -428,13 +430,13 @@ test('el servidor real no degrada a escrituras sin transacción', async () => {
 
 test('login y autenticar usan Postgres y JWT, actualizan ultimo_acceso y logout no consulta bases', async () => {
   const password_hash = await crearHash('clave-persistente');
-  const usuario = { id: 15, email: 'persistente@example.cl', password_hash, rol: 'Administrador' };
+  const usuario = { id: 15, nombre: 'Persistente', email: 'persistente@example.cl', password_hash, rol: 'Administrador' };
   const consultas = [];
   mock.method(neon, 'query', async (sql, params) => {
     consultas.push({ sql, params });
     if (sql.includes('WHERE u.email = $1')) return { rows: [usuario] };
     if (sql.includes('UPDATE usuarios SET ultimo_acceso')) return { rowCount: 1 };
-    if (sql.includes('WHERE u.id = $1')) return { rows: [{ id: usuario.id, email: usuario.email, rol: 'Administrador General' }] };
+    if (sql.includes('WHERE u.id = $1')) return { rows: [{ id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: 'Administrador General' }] };
     throw new Error(`Consulta no esperada: ${sql}`);
   });
   let respuesta;
@@ -442,11 +444,13 @@ test('login y autenticar usan Postgres y JWT, actualizan ultimo_acceso y logout 
   assert.equal(consultas.length, 2);
   assert.match(consultas[1].sql, /UPDATE usuarios SET ultimo_acceso = now\(\) WHERE id = \$1/);
   assert.deepEqual(consultas[1].params, [usuario.id]);
+  assert.equal(respuesta.data.nombre, usuario.nombre);
+  assert.equal(respuesta.data.rol, usuario.rol);
   const req = { headers: { authorization: `Bearer ${respuesta.data.token}` } };
   let error;
   await auth.autenticar(req, {}, value => { error = value; });
   assert.equal(error, undefined);
-  assert.deepEqual(req.admin, { id: usuario.id, email: usuario.email, rol: 'Administrador General' });
+  assert.deepEqual(req.usuario, { id: usuario.id, email: usuario.email, nombre: usuario.nombre, rol: 'Administrador General' });
   const antesLogout = consultas.length;
   await auth.logout(req, { json: data => { respuesta = data; } });
   assert.equal(consultas.length, antesLogout);
@@ -458,11 +462,11 @@ test('token vencido o con otra clave, cuenta desactivada, rol sin permiso y caí
   const clave = crypto.randomBytes(48).toString('hex');
   process.env.JWT_SECRET = clave;
   try {
-    let estadoCuenta = { id: 21, email: 'admin@example.cl', rol: 'Administrador', activa: true, disponible: true };
+    let estadoCuenta = { id: 21, nombre: 'Admin', email: 'admin@example.cl', rol: 'Administrador', activa: true, disponible: true };
     const consulta = mock.method(neon, 'query', async () => {
       if (!estadoCuenta.disponible) throw new Error('connect ECONNREFUSED host-interno:5432');
       if (!estadoCuenta.activa) return { rows: [] };
-      return { rows: [{ id: estadoCuenta.id, email: estadoCuenta.email, rol: estadoCuenta.rol }] };
+      return { rows: [{ id: estadoCuenta.id, nombre: estadoCuenta.nombre, email: estadoCuenta.email, rol: estadoCuenta.rol }] };
     });
     const ahora = Math.floor(Date.now() / 1000);
     const vencido = jwt.sign({ email: estadoCuenta.email, rol: 'Administrador', iat: ahora - 3600, exp: ahora - 60 }, clave, { algorithm: 'HS256', subject: '21' });
@@ -506,5 +510,133 @@ test('multimedia acepta el MIME estándar y los valores históricos del seed', a
     const arma = new Arma({ ...datosArma, multimedia: [{ ...datosArma.multimedia[0], tipo_archivo }] });
     await arma.validate();
     assert.equal(arma.multimedia[0].tipo_archivo, tipo_archivo);
+  }
+});
+
+test('cuenta con rol Usuario inicia sesión, recibe rol Usuario, no puede modificar catálogo ni listar usuarios (403) y puede cerrar sesión (200)', async () => {
+  const password_hash = await crearHash('clave-usuario');
+  const usuario = { id: 88, nombre: 'Lector Civil', email: 'lector@example.cl', password_hash, rol: 'Usuario', cuenta_activa: true };
+  let ultimoAccesoActualizado = 0;
+
+  mock.method(neon, 'query', async (sql, params) => {
+    if (sql.includes('WHERE u.email = $1')) {
+      return { rows: params[0] === usuario.email && usuario.cuenta_activa ? [{ id: usuario.id, nombre: usuario.nombre, email: usuario.email, password_hash: usuario.password_hash, rol: usuario.rol }] : [] };
+    }
+    if (sql.includes('UPDATE usuarios SET ultimo_acceso')) {
+      assert.deepEqual(params, [usuario.id]);
+      ultimoAccesoActualizado += 1;
+      return { rowCount: 1 };
+    }
+    if (sql.includes('WHERE u.id = $1')) {
+      return { rows: params[0] === usuario.id && usuario.cuenta_activa ? [{ id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol }] : [] };
+    }
+    throw new Error(`Consulta no esperada: ${sql}`);
+  });
+
+  const resLogin = await fetch(`${base}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: usuario.email, password: 'clave-usuario' }),
+  });
+  assert.equal(resLogin.status, 200);
+  const sesion = (await resLogin.json()).data;
+  assert.equal(sesion.rol, 'Usuario');
+  assert.equal(sesion.nombre, usuario.nombre);
+  assert.equal(sesion.email, usuario.email);
+  assert.ok(sesion.token);
+  assert.equal(ultimoAccesoActualizado, 1);
+
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion.token}` };
+  const dummyId = '6713f1a0c9d8e20015a4b101';
+
+  for (const recurso of ['armas', 'conflictos', 'paises']) {
+    const postRes = await fetch(`${base}/api/${recurso}`, { method: 'POST', headers, body: JSON.stringify({}) });
+    assert.equal(postRes.status, 403, `POST /api/${recurso} debe responder 403`);
+    assert.equal((await postRes.json()).message, 'No tienes permiso para esta acción.');
+
+    const putRes = await fetch(`${base}/api/${recurso}/${dummyId}`, { method: 'PUT', headers, body: JSON.stringify({}) });
+    assert.equal(putRes.status, 403, `PUT /api/${recurso}/${dummyId} debe responder 403`);
+    assert.equal((await putRes.json()).message, 'No tienes permiso para esta acción.');
+
+    const delRes = await fetch(`${base}/api/${recurso}/${dummyId}`, { method: 'DELETE', headers });
+    assert.equal(delRes.status, 403, `DELETE /api/${recurso}/${dummyId} debe responder 403`);
+    assert.equal((await delRes.json()).message, 'No tienes permiso para esta acción.');
+  }
+
+  const resUsuarios = await fetch(`${base}/api/usuarios`, { headers });
+  assert.equal(resUsuarios.status, 403, 'GET /api/usuarios debe responder 403');
+  assert.equal((await resUsuarios.json()).message, 'No tienes permiso para esta acción.');
+
+  const resLogout = await fetch(`${base}/api/auth/logout`, { method: 'POST', headers });
+  assert.equal(resLogout.status, 200);
+  assert.deepEqual(await resLogout.json(), { success: true, data: null });
+});
+
+test('roles Administrador y Administrador General sí pueden modificar el catálogo (armas, conflictos y países)', async () => {
+  for (const rol of ['Administrador', 'Administrador General']) {
+    conexionTransaccional();
+    const cuenta = { id: rol === 'Administrador' ? 51 : 52, nombre: `Encargado ${rol}`, email: `${rol.toLowerCase().replace(/\s+/g, '')}@example.cl`, rol, cuenta_activa: true };
+    mock.method(neon, 'query', async (sql, params) => {
+      if (sql.includes('WHERE u.id = $1')) {
+        return { rows: [{ id: cuenta.id, nombre: cuenta.nombre, email: cuenta.email, rol: cuenta.rol }] };
+      }
+      throw new Error(`Consulta no esperada: ${sql}`);
+    });
+
+    const { token } = firmarToken({ id: cuenta.id, email: cuenta.email, rol: cuenta.rol });
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+    // Armas
+    mock.method(Arma.prototype, 'save', async function () { return this; });
+    mock.method(Conflicto, 'updateMany', async () => ({ modifiedCount: 0 }));
+    mock.method(Arma, 'findById', async () => new Arma(datosArma));
+    mock.method(Arma, 'findByIdAndDelete', async () => new Arma(datosArma));
+
+    const postArma = await fetch(`${base}/api/armas`, { method: 'POST', headers, body: JSON.stringify(datosArma) });
+    assert.equal(postArma.status, 201, `POST /api/armas debe responder 201 para ${rol}`);
+
+    const putArma = await fetch(`${base}/api/armas/${datosArma._id}`, { method: 'PUT', headers, body: JSON.stringify({ descripcion: 'Modificado' }) });
+    assert.equal(putArma.status, 200, `PUT /api/armas debe responder 200 para ${rol}`);
+
+    const deleteArma = await fetch(`${base}/api/armas/${datosArma._id}`, { method: 'DELETE', headers });
+    assert.equal(deleteArma.status, 200, `DELETE /api/armas debe responder 200 para ${rol}`);
+
+    // Países y Conflictos
+    const dummyId = '6713f1a0c9d8e20015a4b001';
+    const datosPais = { _id: dummyId, nombre: 'País Prueba', tipo_faccion: 'Estado', codigo_iso: 'PP' };
+    const datosConflicto = { _id: dummyId, nombre_conflicto: 'Conflicto Prueba', fecha_inicio: '1940-01-01', teatro_operaciones: 'Europa', armas_involucradas: [] };
+
+    mock.method(Pais.prototype, 'save', async function () { return this; });
+    mock.method(Pais.prototype, 'deleteOne', async function () { return this; });
+    mock.method(Pais, 'findById', async () => new Pais(datosPais));
+    mock.method(Arma, 'exists', async () => false);
+    mock.method(Arma, 'updateMany', async () => ({ modifiedCount: 0 }));
+    mock.method(Arma, 'find', async () => []);
+    mock.method(Arma, 'bulkWrite', async () => ({}));
+
+    const postPais = await fetch(`${base}/api/paises`, { method: 'POST', headers, body: JSON.stringify(datosPais) });
+    assert.equal(postPais.status, 201, `POST /api/paises debe responder 201 para ${rol}`);
+
+    const putPais = await fetch(`${base}/api/paises/${dummyId}`, { method: 'PUT', headers, body: JSON.stringify({ nombre: 'País Editado' }) });
+    assert.equal(putPais.status, 200, `PUT /api/paises debe responder 200 para ${rol}`);
+
+    const deletePais = await fetch(`${base}/api/paises/${dummyId}`, { method: 'DELETE', headers });
+    assert.equal(deletePais.status, 200, `DELETE /api/paises debe responder 200 para ${rol}`);
+
+    mock.method(Conflicto.prototype, 'save', async function () { return this; });
+    mock.method(Conflicto.prototype, 'deleteOne', async function () { return this; });
+    mock.method(Conflicto, 'findById', async () => new Conflicto(datosConflicto));
+    mock.method(Arma, 'countDocuments', async () => 0);
+
+    const postConflicto = await fetch(`${base}/api/conflictos`, { method: 'POST', headers, body: JSON.stringify(datosConflicto) });
+    assert.equal(postConflicto.status, 201, `POST /api/conflictos debe responder 201 para ${rol}`);
+
+    const putConflicto = await fetch(`${base}/api/conflictos/${dummyId}`, { method: 'PUT', headers, body: JSON.stringify({ teatro_operaciones: 'Pacífico' }) });
+    assert.equal(putConflicto.status, 200, `PUT /api/conflictos debe responder 200 para ${rol}`);
+
+    const deleteConflicto = await fetch(`${base}/api/conflictos/${dummyId}`, { method: 'DELETE', headers });
+    assert.equal(deleteConflicto.status, 200, `DELETE /api/conflictos debe responder 200 para ${rol}`);
+
+    mock.restoreAll();
   }
 });

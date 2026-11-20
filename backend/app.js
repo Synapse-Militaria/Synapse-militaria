@@ -70,17 +70,17 @@ app.get('/api/armas', armas.getArmas);
 app.get('/api/armas/buscar', armas.buscarArmas);
 app.get('/api/armas/:id/conflictos', validarId, armas.getConflictos);
 app.get('/api/armas/:id', validarId, armas.getArma);
-app.post('/api/armas', auth.autenticar, armas.createArma);
-app.put('/api/armas/:id', auth.autenticar, validarId, armas.updateArma);
-app.delete('/api/armas/:id', auth.autenticar, validarId, armas.deleteArma);
+app.post('/api/armas', auth.autenticar, requerirRol('Administrador General', 'Administrador'), armas.createArma);
+app.put('/api/armas/:id', auth.autenticar, requerirRol('Administrador General', 'Administrador'), validarId, armas.updateArma);
+app.delete('/api/armas/:id', auth.autenticar, requerirRol('Administrador General', 'Administrador'), validarId, armas.deleteArma);
 
 for (const tipo of ['conflictos', 'paises']) {
   const controller = catalogoController(tipo);
   app.get(`/api/${tipo}`, controller.listar);
   app.get(`/api/${tipo}/:id`, validarId, controller.obtener);
-  app.post(`/api/${tipo}`, auth.autenticar, controller.crear);
-  app.put(`/api/${tipo}/:id`, auth.autenticar, validarId, controller.actualizar);
-  app.delete(`/api/${tipo}/:id`, auth.autenticar, validarId, controller.eliminar);
+  app.post(`/api/${tipo}`, auth.autenticar, requerirRol('Administrador General', 'Administrador'), controller.crear);
+  app.put(`/api/${tipo}/:id`, auth.autenticar, requerirRol('Administrador General', 'Administrador'), validarId, controller.actualizar);
+  app.delete(`/api/${tipo}/:id`, auth.autenticar, requerirRol('Administrador General', 'Administrador'), validarId, controller.eliminar);
 }
 
 app.get('/api/usuarios', auth.autenticar, requerirRol('Administrador General'), usuarios.listar);
