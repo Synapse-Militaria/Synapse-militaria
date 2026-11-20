@@ -17,7 +17,7 @@ app.use((req, res, next) => {
   if (origin && origenes.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
   }
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -85,6 +85,8 @@ for (const tipo of ['conflictos', 'paises']) {
 
 app.get('/api/usuarios', auth.autenticar, requerirRol('Administrador General'), usuarios.listar);
 app.post('/api/usuarios', auth.autenticar, requerirRol('Administrador General'), usuarios.crear);
+app.patch('/api/usuarios/:id', auth.autenticar, requerirRol('Administrador General'), usuarios.actualizar);
+app.delete('/api/usuarios/:id', auth.autenticar, requerirRol('Administrador General'), usuarios.eliminar);
 
 app.use((req, res, next) => next(errorHTTP(404, 'Ruta no encontrada.')));
 app.use(responderError);
