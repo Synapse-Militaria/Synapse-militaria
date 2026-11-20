@@ -1,8 +1,8 @@
 const { errorHTTP } = require('../controllers/armaController');
 
 // Restringe una ruta a ciertos roles. Se usa después de auth.autenticar, que deja el rol en req.admin.rol:
-//   router.post('/cuentas', auth.autenticar, requerirRol('Administrador General'), ...)
-// Todavía no está conectado a ninguna ruta; queda listo para la gestión de cuentas.
+//   app.get('/api/usuarios', auth.autenticar, requerirRol('Administrador General'), ...)
+// Se usa en las rutas GET y POST de /api/usuarios (backend/app.js) para exigir el rol Administrador General.
 function requerirRol(...roles) {
   const permitidos = new Set(roles);
   return (req, res, next) => {

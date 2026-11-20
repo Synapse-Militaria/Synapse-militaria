@@ -4,6 +4,8 @@ const conectarDB = require('./config/database');
 const neon = require('./neon');
 const { armas, reportes, catalogoController, auth, errorHTTP, responderError } = require('./controllers/armaController');
 const { crearLimitadorLogin } = require('./middleware/loginLimiter');
+const { requerirRol } = require('./middleware/requerirRol');
+const usuarios = require('./controllers/usuarioController');
 
 const app = express();
 const origenes = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173')
@@ -80,6 +82,9 @@ for (const tipo of ['conflictos', 'paises']) {
   app.put(`/api/${tipo}/:id`, auth.autenticar, validarId, controller.actualizar);
   app.delete(`/api/${tipo}/:id`, auth.autenticar, validarId, controller.eliminar);
 }
+
+app.get('/api/usuarios', auth.autenticar, requerirRol('Administrador General'), usuarios.listar);
+app.post('/api/usuarios', auth.autenticar, requerirRol('Administrador General'), usuarios.crear);
 
 app.use((req, res, next) => next(errorHTTP(404, 'Ruta no encontrada.')));
 app.use(responderError);
