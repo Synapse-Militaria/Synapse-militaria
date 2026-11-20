@@ -33,11 +33,18 @@ export default function Nav({
               <button onClick={onLogout} className="font-mono text-xs text-accent-foreground hover:text-red-400 transition-colors uppercase tracking-wider">
                 Cerrar sesión
               </button>
-            </> : <button onClick={() => navigate({
-          view: 'login'
-        })} className="border border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground font-mono text-xs px-3 py-1.5 transition-colors uppercase tracking-wider">
-              Iniciar sesión
-            </button>}
+            </> : <>
+              <button onClick={() => navigate({
+            view: 'register'
+          })} className={`font-mono text-xs tracking-wider uppercase transition-colors ${page.view === 'register' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                Crear cuenta
+              </button>
+              <button onClick={() => navigate({
+            view: 'login'
+          })} className="border border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground font-mono text-xs px-3 py-1.5 transition-colors uppercase tracking-wider">
+                Iniciar sesión
+              </button>
+            </>}
         </div>
         <button className="md:hidden shrink-0 text-muted-foreground p-2" onClick={() => setMobileOpen(v => !v)} aria-label="Menú" aria-expanded={mobileOpen} aria-controls="menu-movil">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -71,14 +78,24 @@ export default function Nav({
         }} className="font-mono text-xs text-accent-foreground text-left uppercase">
                 Cerrar sesión
               </button>
-            </> : <button onClick={() => {
-        navigate({
-          view: 'login'
-        });
-        setMobileOpen(false);
-      }} className="font-mono text-xs text-primary text-left uppercase">
-              Iniciar sesión
-            </button>}
+            </> : <>
+              <button onClick={() => {
+          navigate({
+            view: 'register'
+          });
+          setMobileOpen(false);
+        }} className="font-mono text-xs tracking-wider text-left text-foreground uppercase">
+                Crear cuenta
+              </button>
+              <button onClick={() => {
+          navigate({
+            view: 'login'
+          });
+          setMobileOpen(false);
+        }} className="font-mono text-xs text-primary text-left uppercase">
+                Iniciar sesión
+              </button>
+            </>}
         </div>}
     </nav>;
 }

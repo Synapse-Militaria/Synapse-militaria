@@ -43,7 +43,10 @@ export default function AdminLogin({ navigate, onLogin, onDemoLogin, mode, messa
         <button type="submit" disabled={loading || mode === 'loading'} className="w-full bg-primary text-primary-foreground font-mono text-xs font-semibold py-3 uppercase tracking-widest hover:bg-primary/90">{loading ? 'Verificando…' : mode === 'loading' ? 'Comprobando conexión…' : 'Acceder al sistema'}</button>
         <div className="text-center pt-1"><button type="button" onClick={() => setRecovering(true)} className="font-mono text-xs text-muted-foreground hover:text-primary">¿Olvidó su contraseña?</button></div>
       </form>}
-      <div className="text-center mt-5"><button onClick={() => navigate({ view: 'home' })} className="font-mono text-xs text-muted-foreground hover:text-primary uppercase tracking-widest">← Volver al inicio</button></div>
+      <div className="text-center mt-5 space-y-3">
+        <div><button type="button" onClick={() => navigate({ view: 'register' })} className="font-mono text-xs text-muted-foreground hover:text-primary">¿No tienes cuenta? Crear cuenta</button></div>
+        <div><button type="button" onClick={() => navigate({ view: 'home' })} className="font-mono text-xs text-muted-foreground hover:text-primary uppercase tracking-widest">← Volver al inicio</button></div>
+      </div>
     </div>
     {recovering && <RecoveryModal mode={mode} initialEmail={email} onClose={() => setRecovering(false)} />}
   </main>

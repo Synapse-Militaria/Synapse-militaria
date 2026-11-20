@@ -11,13 +11,14 @@ Enciclopedia de armamento histórico con React, Vite y Tailwind CSS. El frontend
 | Consultas | Reporte de armas por país con filtros de año, tipo y mínimo de armas; agregación real de MongoDB con JOIN y agrupación. |
 | Ficha del arma | Descripción histórica, especificaciones, galería ampliable, fuentes enlazadas y línea de tiempo de conflictos. |
 | Ingreso administrativo | Formulario de correo y contraseña, mensajes de error y acceso al panel. |
+| Crear cuenta | Formulario de registro (nombre, correo y contraseña) que crea una cuenta con rol Usuario e inicia la sesión. |
 | Panel administrativo | Creación, edición y eliminación de armas, conflictos, países/facciones y referencias. Confirmación de guardado y ventana de confirmación al eliminar. |
 
 En Consultas, el botón **Descargar CSV** exporta el reporte de armas por país que está en pantalla como listado cruzado (una fila por arma con el país, su total, año promedio y tipos), en modo online o local, con un nombre de archivo según los filtros aplicados.
 
 La búsqueda ignora mayúsculas y tildes. Cuando no hay coincidencias, muestra un estado vacío con un botón para restablecer todos los filtros.
 
-La navegación utiliza las rutas `/`, `/enciclopedia`, `/consultas`, `/arma/:id`, `/ingresar` (o `/admin/login`) y `/admin`, sin recargar la página. Se pueden usar los botones Atrás y Adelante del navegador.
+La navegación utiliza las rutas `/`, `/enciclopedia`, `/consultas`, `/arma/:id`, `/ingresar` (o `/admin/login`), `/registro` y `/admin`, sin recargar la página. Se pueden usar los botones Atrás y Adelante del navegador.
 
 El menú principal adapta sus opciones según el rol de la sesión: sin sesión muestra **Iniciar sesión**; con sesión muestra el nombre y rol (`nombre · rol`) junto a **Cerrar sesión**, y habilita **Panel Admin** únicamente para cuentas con rol `Administrador` o `Administrador General`.
 

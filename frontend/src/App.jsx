@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Encyclopedia from './pages/Encyclopedia'
 import WeaponDetail from './pages/WeaponDetail'
 import AdminLogin from './pages/AdminLogin'
+import Register from './pages/Register'
 import AdminDashboard from './pages/AdminDashboard'
 import QueryReports from './pages/QueryReports'
 import { weapons, countries, conflicts, normalizeWeapon, normalizeCountry, normalizeConflict } from './data/mockData'
@@ -25,6 +26,7 @@ function readPage() {
     catch { return { view: 'not-found' } }
   }
   if (pathname === '/ingresar' || pathname === '/admin/login') return { view: 'login' }
+  if (pathname === '/registro') return { view: 'register' }
   if (pathname === '/admin') return { view: 'admin' }
   return { view: 'not-found' }
 }
@@ -33,6 +35,7 @@ function pageUrl(page) {
   if (page.view === 'home') return '/'
   if (page.view === 'weapon') return `/arma/${encodeURIComponent(page.id)}`
   if (page.view === 'login') return '/ingresar'
+  if (page.view === 'register') return '/registro'
   if (page.view === 'admin') return '/admin'
   if (page.view === 'queries') return '/consultas'
   const params = new URLSearchParams()
@@ -98,6 +101,9 @@ export default function App() {
   const [connectionError, setConnectionError] = useState('')
   const connectionAttempt = useRef(0)
   const reconnecting = useRef(false)
+  const currentView = useRef(page.view)
+
+  useEffect(() => { currentView.current = page.view }, [page.view])
 
   const navigate = useCallback(to => {
     window.history.pushState({}, '', pageUrl(to))
@@ -152,8 +158,10 @@ export default function App() {
       clearTimeout(timer)
       timer = setTimeout(() => {
         setSession(null)
-        setSessionMessage('La sesión terminó por inactividad. Vuelve a ingresar.')
-        navigate({ view: 'login' })
+        if (currentView.current === 'admin') {
+          setSessionMessage('La sesión terminó por inactividad. Vuelve a ingresar.')
+          navigate({ view: 'login' })
+        }
       }, Math.min(15 * 60 * 1000, session.expiresAt - Date.now()))
     }
     resetTimer()
@@ -169,6 +177,15 @@ export default function App() {
     const data = await request('/auth/login', { method: 'POST', body: { email, password } })
     setSession({ ...data, nombre: data.nombre, rol: data.rol, expiresAt: Number(new Date(data.expiresAt)) })
     navigate({ view: ROLES_ADMIN.includes(data.rol) ? 'admin' : 'home' })
+  }
+
+  async function handleRegister(nombre, email, password) {
+    setSessionMessage('')
+    if (mode === 'loading') throw new Error('Espera un momento mientras se comprueba la conexión.')
+    if (mode !== 'online') throw new Error('No hay conexión con el servidor. Para crear una cuenta se necesita conexión con el servidor.')
+    const data = await request('/auth/registro', { method: 'POST', body: { nombre, email, password } })
+    setSession({ ...data, nombre: data.nombre, rol: data.rol, expiresAt: Number(new Date(data.expiresAt)) })
+    navigate({ view: 'home' })
   }
 
   function handleDemoLogin() {
@@ -239,6 +256,7 @@ export default function App() {
       {page.view === 'queries' && <QueryReports mode={mode} navigate={navigate} {...publicCatalog} />}
       {page.view === 'weapon' && <WeaponDetail key={page.id} id={page.id} navigate={navigate} mode={mode} {...(isAdmin ? catalog : publicCatalog)} />}
       {(page.view === 'login' || (page.view === 'admin' && !session)) && <AdminLogin navigate={navigate} onLogin={handleLogin} onDemoLogin={handleDemoLogin} mode={mode} message={sessionMessage} />}
+      {page.view === 'register' && <Register navigate={navigate} onRegister={handleRegister} mode={mode} />}
       {page.view === 'admin' && session && !isAdmin && <main className="pt-32 px-6 text-center"><h1 className="font-heading text-3xl uppercase mb-6">Tu cuenta no tiene permisos de administración</h1><button className="text-primary underline" onClick={() => navigate({ view: 'home' })}>Volver al inicio</button></main>}
       {page.view === 'admin' && isAdmin && <AdminDashboard navigate={navigate} onLogout={handleLogout} {...catalog} onSave={saveRecord} onDelete={deleteRecord} mode={mode} />}
       {page.view === 'not-found' && <main className="pt-32 px-6 text-center"><h1 className="font-heading text-3xl uppercase mb-6">Página no encontrada</h1><button className="text-primary underline" onClick={() => navigate({ view: 'home' })}>Volver al inicio</button></main>}
